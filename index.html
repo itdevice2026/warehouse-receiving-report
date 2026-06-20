@@ -388,6 +388,7 @@ const ROW_TOP=165, ROW_H=22.3, MAX_ROWS=18;
 const TOTAL_Y=580;
 const ALIGN={itemCode:'left',desc:'left',uom:'center',qty:'right',weight:'right',prodDate:'center',expDate:'center',pallet:'center',remarks:'left'};
 const PAD=3; // px padding inside cell
+const GUT=2; // sheet-space gutter so adjacent columns never touch
 
 function pctL(px){return (px/SHEET_W*100);}
 function pctT(px){return (px/SHEET_H*100);}
@@ -482,6 +483,7 @@ let _mctx;
 function _measureW(t,fpx,fam){ try{ if(_mctx===undefined)_mctx=document.createElement("canvas").getContext("2d"); if(_mctx){ _mctx.font=fpx.toFixed(2)+"px "+fam; return _mctx.measureText(t).width; } }catch(e){} return String(t).length*fpx*0.58; }
 function _countLines(t,fpx,w,fam){ const ws=String(t).split(/\s+/).filter(Boolean); if(!ws.length)return 1; let n=1,cur=""; for(const x of ws){ const tt=cur?cur+" "+x:x; if(!cur||_measureW(tt,fpx,fam)<=w){ cur=tt; } else { n++; cur=x; } } return n; }
 function fitDesc(t,baseFpx,w,fam,maxLines){ let f=baseFpx; for(let i=0;i<16 && _countLines(t,f,w,fam)>maxLines;i++){ f*=0.93; if(f<baseFpx*0.5){ f=baseFpx*0.5; break; } } return {font:f, lines:_countLines(t,f,w,fam)}; }
+function fitWidth(t,baseFpx,w,fam){ let f=baseFpx; for(let i=0;i<18 && _measureW(t,f,fam)>w;i++){ f*=0.92; if(f<baseFpx*0.4){ f=baseFpx*0.4; break; } } return f; }
 
 /* ---------- Shared field painter (place: leftPx,topPx,text,align,widthPx,bold) ---------- */
 function paintFields(place,fontSheetPx){
@@ -493,18 +495,18 @@ function paintFields(place,fontSheetPx){
   // line items
   items.forEach((r,i)=>{
     if(i>=MAX_ROWS)return;
-    const yTop=ROW_TOP+i*ROW_H+(ROW_H-fontSheetPx)/2-1+rT;
+    const fam=fontFam();
     for(const k in COL_PX){
       let v=r[k]; if(v==='' || v==null)continue;
       if(k==='prodDate'||k==='expDate') v=fmtDate(v);
       const [lpx,rpx]=COL_PX[k];
-      if(k==='desc'){
-        const fam=fontFam(), wSheet=(rpx-lpx)-3;
-        const fit=fitDesc(v, fontSheetPx, wSheet, fam, 2), ratio=fit.font/fontSheetPx;
-        const blockH=fit.lines*fit.font*1.04, topDesc=ROW_TOP+i*ROW_H+rT+Math.max(0,(ROW_H-blockH)/2);
-        place(lpx+cOff(k), topDesc, v, 'left', rpx-lpx, false, true, ratio);
-      }
-      else { place(lpx+cOff(k),yTop,v,ALIGN[k],rpx-lpx); }
+      const wAvail=(rpx-lpx)-2*GUT;
+      let ratio, lines;
+      if(k==='desc'){ const fit=fitDesc(v, fontSheetPx, wAvail, fam, 2); ratio=fit.font/fontSheetPx; lines=fit.lines; }
+      else { ratio=fitWidth(v, fontSheetPx, wAvail, fam)/fontSheetPx; lines=1; }
+      const blockH=lines*fontSheetPx*ratio*1.04;
+      const topPx=ROW_TOP+i*ROW_H+rT+Math.max(0,(ROW_H-blockH)/2);
+      place(lpx+cOff(k), topPx, v, ALIGN[k], rpx-lpx, false, (k==='desc'), ratio);
     }
   });
   // totals
@@ -544,9 +546,8 @@ function buildOverlay(target){
     d.style.fontFamily=FF;
     d.style.top=pctT(topPx)+'%';d.style.left=pctL(leftPx)+'%';
     d.style.fontSize=(fontPx*(fontScale||1)).toFixed(2)+'px';d.style.textAlign=align||'left';
-    if(widthPx)d.style.width=pctL(widthPx)+'%';
-    if(align==='left')d.style.paddingLeft=PAD+'px';
-    if(align==='right')d.style.paddingRight=PAD+'px';
+    if(widthPx){ d.style.boxSizing='border-box'; d.style.width=pctL(widthPx)+'%'; d.style.paddingLeft=pctL(GUT)+'%'; d.style.paddingRight=pctL(GUT)+'%'; }
+    else { if(align==='left')d.style.paddingLeft=PAD+'px'; if(align==='right')d.style.paddingRight=PAD+'px'; }
     if(bold||FB)d.style.fontWeight='bold';
     if(FI)d.style.fontStyle='italic';
     if(wrap){ d.style.whiteSpace='normal'; d.style.lineHeight='1.02'; }
@@ -701,9 +702,8 @@ function buildOverlayInto(box,pageWin){
     d.style.whiteSpace=wrap?'normal':'nowrap';d.style.lineHeight=wrap?'1.02':'1';
     d.style.top=pctT(topPx)+'%';d.style.left=pctL(leftPx)+'%';
     d.style.fontSize=(fontPx*(fontScale||1)).toFixed(2)+'px';d.style.textAlign=align||'left';
-    if(widthPx)d.style.width=pctL(widthPx)+'%';
-    if(align==='left')d.style.paddingLeft=PAD+'px';
-    if(align==='right')d.style.paddingRight=PAD+'px';
+    if(widthPx){ d.style.boxSizing='border-box'; d.style.width=pctL(widthPx)+'%'; d.style.paddingLeft=pctL(GUT)+'%'; d.style.paddingRight=pctL(GUT)+'%'; }
+    else { if(align==='left')d.style.paddingLeft=PAD+'px'; if(align==='right')d.style.paddingRight=PAD+'px'; }
     if(bold||FB)d.style.fontWeight='bold';
     if(FI)d.style.fontStyle='italic';
     d.style.overflow='hidden';
