@@ -354,14 +354,14 @@ table.admin-tbl select{padding:5px 7px;border:1px solid #cdd4cd;border-radius:6p
           <input id="newUserEmail" type="email" placeholder="email@meatplus.ph">
           <input id="newUserName" type="text" placeholder="Full name (for signature)">
           <input id="newUserPass" type="text" placeholder="Temporary password">
-          <select id="newUserRole">
-            <option value="checker">Warehouse Checker</option>
-            <option value="analyst">Inventory Analyst</option>
-            <option value="supervisor">Warehouse Supervisor</option>
-            <option value="admin">Admin</option>
-            <option value="none">No role yet</option>
-          </select>
           <button class="btn" onclick="adminCreateUser()">Create user</button>
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:14px;align-items:center;font-size:12px;margin-top:8px">
+          <span style="color:var(--muted)">Roles:</span>
+          <label><input type="checkbox" class="newrolechk" value="checker"> Checker</label>
+          <label><input type="checkbox" class="newrolechk" value="analyst"> Analyst</label>
+          <label><input type="checkbox" class="newrolechk" value="supervisor"> Supervisor</label>
+          <label><input type="checkbox" class="newrolechk" value="admin"> Admin</label>
         </div>
         <div class="hint" style="margin-top:6px">Creates a login with the temporary password (tell them to change it). Email becomes lowercase.</div>
       </div>
@@ -395,7 +395,9 @@ function pctT(px){return (px/SHEET_H*100);}
 /* ---------- State ---------- */
 let items=[];
 let currentId=null;
-let currentStatus='draft', currentRole=null, currentName=null, currentUser=null;
+let currentStatus='draft', currentRoles=[], currentName=null, currentUser=null;
+function isAdmin(){ return currentRoles.indexOf('admin')>=0; }
+function hasRole(r){ return isAdmin()||currentRoles.indexOf(r)>=0; }
 const $=id=>document.getElementById(id);
 
 /* ---------- Fine-alignment layout overrides (device-local) ---------- */
@@ -407,7 +409,7 @@ function normalizeLayout(l){ l=l||{}; return {fields:l.fields||{}, cols:l.cols||
 function loadLayout(){ try{ return normalizeLayout(JSON.parse(localStorage.getItem('pasei_wrr_layout')||'{}')); }catch(e){ return {fields:{},cols:{},rowTop:0}; } }
 function saveLayout(){
   try{ localStorage.setItem('pasei_wrr_layout', JSON.stringify(layout)); }catch(e){}
-  if(currentRole==='admin' && sb){ sb.from('wrr_app_settings').upsert({key:'layout',value:layout},{onConflict:'key'}).then(({error})=>{ if(error) console.warn('layout save:',error.message); }); }
+  if(isAdmin() && sb){ sb.from('wrr_app_settings').upsert({key:'layout',value:layout},{onConflict:'key'}).then(({error})=>{ if(error) console.warn('layout save:',error.message); }); }
 }
 async function loadLayoutRemote(){
   if(!sb) return;
@@ -616,7 +618,7 @@ function onDrag(e){
 }
 function endDrag(){ dragState=null; document.removeEventListener('mousemove',onDrag); document.removeEventListener('mouseup',endDrag); saveLayout(); }
 function toggleAdjust(){
-  if(currentRole!=='admin'){ flash('Only an admin can adjust the layout',true); return; }
+  if(!isAdmin()){ flash('Only an admin can adjust the layout',true); return; }
   if(adjustMode){
     adjustMode=false; layoutLocked=true; saveLayoutLock();
   } else {
@@ -732,13 +734,13 @@ async function onSignedIn(){
   if(!data||!data.user)return;
   currentUser=data.user;
   let roleRow=null;
-  try{ const r=await sb.from('wrr_roles').select('role,name').eq('user_id',data.user.id).maybeSingle(); roleRow=r.data; }catch(e){}
-  currentRole=roleRow?roleRow.role:null;
+  try{ const r=await sb.from('wrr_roles').select('roles,name').eq('user_id',data.user.id).maybeSingle(); roleRow=r.data; }catch(e){}
+  currentRoles=(roleRow&&Array.isArray(roleRow.roles))?roleRow.roles:[];
   currentName=roleRow?(roleRow.name||data.user.email):null;
-  $('userEmail').textContent=data.user.email+(currentRole?(' · '+roleTitle(currentRole)):' · no role');
-  if($('adminBtn')) $('adminBtn').classList.toggle('app-hidden', currentRole!=='admin');
-  if($('itemsBtn')) $('itemsBtn').classList.toggle('app-hidden', currentRole!=='admin');
-  if($('adjustBtn')){ $('adjustBtn').classList.toggle('app-hidden', currentRole!=='admin'); updateAdjustBtn(); }
+  $('userEmail').textContent=data.user.email+(currentRoles.length?(' · '+currentRoles.map(roleTitle).join(', ')):' · no role');
+  if($('adminBtn')) $('adminBtn').classList.toggle('app-hidden', !isAdmin());
+  if($('itemsBtn')) $('itemsBtn').classList.toggle('app-hidden', !isAdmin());
+  if($('adjustBtn')){ $('adjustBtn').classList.toggle('app-hidden', !isAdmin()); updateAdjustBtn(); }
   await loadLayoutRemote(); render();
   await loadItemMaster();
   $('authGate').style.display='none';
@@ -849,7 +851,7 @@ function renderApproval(){
   const note=$('approvalNote');
   if(!currentId){ note.textContent='Save the report to begin the approval sequence (Checked → Verified → Approved).'; }
   else if(st==='approved'){ note.textContent='Fully approved — this report is locked.'; }
-  else { note.textContent='Sequence: Checked → Verified → Approved.'+(currentRole?'':' Your account has no approval role assigned.'); }
+  else { note.textContent='Sequence: Checked → Verified → Approved.'+(currentRoles.length?'':' Your account has no approval role assigned.'); }
   const next=nextStepKey(st);
   const box=$('signSteps'); box.innerHTML='';
   STEP_DEFS.forEach(s=>{
@@ -863,7 +865,7 @@ function renderApproval(){
     const right=document.createElement('div');
     if(isDone){ right.innerHTML='<span class="sign-check">✓ Signed</span>'; }
     else if(isNext){
-      const canSign = !!currentId && (currentRole==='admin'||currentRole===s.role);
+      const canSign = !!currentId && hasRole(s.role);
       const b=document.createElement('button'); b.className='sign-btn'; b.textContent='Sign as '+roleTitle(s.role);
       b.disabled=!canSign;
       b.title = !currentId ? 'Save the report first' : (canSign?'' : ('Requires the '+roleTitle(s.role)+' role'));
@@ -873,7 +875,7 @@ function renderApproval(){
     row.appendChild(right);
     box.appendChild(row);
   });
-  if(currentRole==='admin' && currentId && (currentStatus!=='draft')){
+  if(isAdmin() && currentId && (currentStatus!=='draft')){
     const r=document.createElement('button'); r.className='btn ghost'; r.type='button';
     r.style.cssText='padding:5px 10px;font-size:12px;margin-top:2px'; r.textContent='Revert one step (admin)';
     r.onclick=revertStep; box.appendChild(r);
@@ -903,9 +905,9 @@ function applyLock(){
 
 
 /* ---------- Admin / RBAC ---------- */
-const ROLE_OPTS=[['checker','Warehouse Checker'],['analyst','Inventory Analyst'],['supervisor','Warehouse Supervisor'],['admin','Admin'],['none','No role']];
+const ROLE_LIST=[['checker','Checker'],['analyst','Analyst'],['supervisor','Supervisor'],['admin','Admin']];
 function cssesc(s){ return String(s).replace(/["\\]/g,'\\$&'); }
-function openAdmin(){ if(currentRole!=='admin'){ flash('Admin only',true); return; } $('adminModal').style.display='flex'; loadAdminUsers(); }
+function openAdmin(){ if(!isAdmin()){ flash('Admin only',true); return; } $('adminModal').style.display='flex'; loadAdminUsers(); }
 function closeAdmin(){ $('adminModal').style.display='none'; }
 async function loadAdminUsers(){
   const box=$('adminUsers'); box.innerHTML='<div class="empty">Loading…</div>';
@@ -913,32 +915,35 @@ async function loadAdminUsers(){
   if(error){ box.innerHTML='<div class="empty">'+esc(error.message)+'</div>'; return; }
   const me=currentUser?currentUser.email:'';
   const rows=(data||[]).map(u=>{
-    const cur=u.role||'none';
-    const opts=ROLE_OPTS.map(([v,l])=>'<option value="'+v+'"'+(cur===v?' selected':'')+'>'+l+'</option>').join('');
+    const cur=Array.isArray(u.roles)?u.roles:[];
+    const checks=ROLE_LIST.map(([v,l])=>'<label style="display:inline-flex;align-items:center;gap:3px;margin-right:8px;white-space:nowrap"><input type="checkbox" class="rolechk" value="'+v+'"'+(cur.indexOf(v)>=0?' checked':'')+' onchange="adminSetRoles(this.closest(\'tr\').dataset.email)"> '+l+'</label>').join('');
     const isMe=u.email===me;
     return '<tr data-email="'+esc(u.email)+'">'+
       '<td><div class="usr-email">'+esc(u.email)+(isMe?'<span class="tag-you">you</span>':'')+'</div><div class="usr-sub">'+esc(u.name||'')+'</div></td>'+
-      '<td><select onchange="adminSetRole(this.closest(\'tr\').dataset.email,this.value)">'+opts+'</select></td>'+
+      '<td style="min-width:230px">'+checks+'</td>'+
       '<td>'+(u.disabled?'<span class="tag-off">Disabled</span>':'<span class="tag-active">Active</span>')+'</td>'+
       '<td style="text-align:right;white-space:nowrap"><button class="mini" onclick="adminResetPw(this.closest(\'tr\').dataset.email)">Reset password</button>'+
       (isMe?'':'<button class="mini warn" onclick="adminToggleDisabled(this.closest(\'tr\').dataset.email,'+(u.disabled?'false':'true')+')">'+(u.disabled?'Enable':'Disable')+'</button>')+
       '</td></tr>';
   }).join('');
-  box.innerHTML='<table class="admin-tbl"><thead><tr><th>User</th><th>Role</th><th>Status</th><th></th></tr></thead><tbody>'+rows+'</tbody></table>';
+  box.innerHTML='<table class="admin-tbl"><thead><tr><th>User</th><th>Roles</th><th>Status</th><th></th></tr></thead><tbody>'+rows+'</tbody></table>';
 }
-async function adminSetRole(email,role){
+async function adminSetRoles(email){
   const tr=document.querySelector('#adminUsers tr[data-email="'+cssesc(email)+'"]');
   const name=tr?tr.querySelector('.usr-sub').textContent:'';
-  const {error}=await sb.rpc('wrr_admin_set_role',{p_email:email,p_name:name,p_role:role});
-  if(error){ flash(error.message,true); } else { flash('Role updated'); }
+  const roles=tr?[...tr.querySelectorAll('.rolechk:checked')].map(c=>c.value):[];
+  const {error}=await sb.rpc('wrr_admin_set_roles',{p_email:email,p_name:name,p_roles:roles});
+  if(error){ flash(error.message,true); } else { flash('Roles updated'); }
   loadAdminUsers();
 }
 async function adminCreateUser(){
-  const email=$('newUserEmail').value.trim(), name=$('newUserName').value.trim(), pass=$('newUserPass').value, role=$('newUserRole').value;
+  const email=$('newUserEmail').value.trim(), name=$('newUserName').value.trim(), pass=$('newUserPass').value;
+  const roles=[...document.querySelectorAll('.newrolechk:checked')].map(c=>c.value);
   if(!email||!pass){ flash('Email and temporary password are required',true); return; }
-  const {error}=await sb.rpc('wrr_admin_create_user',{p_email:email,p_password:pass,p_name:name,p_role:role});
+  const {error}=await sb.rpc('wrr_admin_create_user',{p_email:email,p_password:pass,p_name:name,p_roles:roles});
   if(error){ flash(error.message,true); return; }
   flash('User created'); $('newUserEmail').value='';$('newUserName').value='';$('newUserPass').value='';
+  document.querySelectorAll('.newrolechk').forEach(c=>c.checked=false);
   loadAdminUsers();
 }
 async function adminResetPw(email){
@@ -997,7 +1002,7 @@ function itemDescWithBrand(it){
   if(b && d.toLowerCase().indexOf(b.toLowerCase())<0) return d? (d+' - '+b) : b;
   return d;
 }
-function openItems(){ if(currentRole!=='admin'){ flash('Admin only',true); return; } $('itemsModal').style.display='flex'; loadItemMaster().then(renderItemsList); }
+function openItems(){ if(!isAdmin()){ flash('Admin only',true); return; } $('itemsModal').style.display='flex'; loadItemMaster().then(renderItemsList); }
 function closeItems(){ $('itemsModal').style.display='none'; }
 function renderItemsList(){
   const box=$('itemsList'); if(!box) return;
