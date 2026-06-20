@@ -86,6 +86,7 @@ td .avail.avail-short{color:var(--red)}
 .trace-tbl td.r,.trace-tbl th.r{text-align:right;font-variant-numeric:tabular-nums}
 .dir-in{color:var(--green2);font-weight:700}
 .dir-out{color:var(--red);font-weight:700}
+.tg-when{font-size:9px;color:var(--muted);font-weight:400}
 #saveBtn{background:linear-gradient(135deg,#16a05f,#0b6b3a);box-shadow:0 2px 7px rgba(11,107,58,.4);padding:9px 20px;font-weight:700;letter-spacing:.2px}
 #saveBtn:hover{background:linear-gradient(135deg,#12894f,#085c31)}
 #saveBtn:active{transform:translateY(1px);box-shadow:0 1px 3px rgba(11,107,58,.4)}
@@ -206,7 +207,7 @@ table.admin-tbl select{padding:5px 7px;border:1px solid var(--field-bd);border-r
 <header class="app app-hidden" id="appHeader">
   <div>
     <h1 id="docTitle">Pacific Agrisolutions Enterprises Inc. — Warehouse Receiving Report</h1>
-    <div class="sub">Pre-printed form data entry &amp; overlay print system &middot; <span id="buildTag">build 2026-06-20#25</span></div>
+    <div class="sub">Pre-printed form data entry &amp; overlay print system &middot; <span id="buildTag">build 2026-06-20#26</span></div>
     <div class="doctype-switch">
       <button type="button" id="dtReceiving" class="dt active" onclick="setDocType('receiving')"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Receiving (Stock In)</button>
       <button type="button" id="dtIssuance" class="dt" onclick="setDocType('issuance')"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>Issuance (Stock Out)</button>
@@ -1211,15 +1212,17 @@ function renderTrace(){
   });
   box.innerHTML=html;
 }
+function whenCell(n,dt){ n=esc(n||''); dt=esc(dt||''); if(!n&&!dt) return '<td>—</td>'; return '<td>'+n+(dt?'<div class="tg-when">'+dt+'</div>':'')+'</td>'; }
 function ledgerTable(ms){
   let run=0, rows='';
   ms.forEach(m=>{
     const h=Number(m.heads||0); run += (m.direction==='IN'? h : -h);
     rows+='<tr><td>'+esc(fmtDate(m.docdate)||'')+'</td><td><span class="dir-'+m.direction.toLowerCase()+'">'+m.direction+'</span></td><td>'+esc(m.docno||'')+'</td><td>'+esc(m.custname||'')+'</td>'+
       '<td class="r">'+(m.direction==='IN'?fmt(h):'')+'</td><td class="r">'+(m.direction==='OUT'?fmt(h):'')+'</td><td class="r"><b>'+fmt(run)+'</b></td><td class="r">'+fmt(Number(m.kgs||0))+'</td>'+
-      '<td>'+esc(m.crate||'')+'</td><td>'+esc(m.pallet||'')+'</td><td>'+esc(fmtDate(m.prod_date)||'')+'</td><td>'+esc(fmtDate(m.exp_date)||'')+'</td><td>'+esc(m.remarks||'')+'</td></tr>';
+      '<td>'+esc(m.crate||'')+'</td><td>'+esc(m.pallet||'')+'</td><td>'+esc(fmtDate(m.prod_date)||'')+'</td><td>'+esc(fmtDate(m.exp_date)||'')+'</td><td>'+esc(m.remarks||'')+'</td>'+
+      whenCell(m.checked_by,m.checked_at)+whenCell(m.verified_by,m.verified_at)+whenCell(m.approved_by,m.approved_at_txt)+'</tr>';
   });
-  return '<table class="trace-tbl"><thead><tr><th>Date</th><th>Dir</th><th>Doc No</th><th>Party</th><th class="r">In</th><th class="r">Out</th><th class="r">Balance</th><th class="r">Kgs</th><th>Crate</th><th>Pallet</th><th>Prod</th><th>Exp</th><th>Remarks</th></tr></thead><tbody>'+rows+'</tbody></table>';
+  return '<table class="trace-tbl"><thead><tr><th>Date</th><th>Dir</th><th>Doc No</th><th>Party</th><th class="r">In</th><th class="r">Out</th><th class="r">Balance</th><th class="r">Kgs</th><th>Crate</th><th>Pallet</th><th>Prod</th><th>Exp</th><th>Remarks</th><th>Checked By</th><th>Verified By</th><th>Approved By</th></tr></thead><tbody>'+rows+'</tbody></table>';
 }
 function toggleTrace(gid){ const d=$(gid), a=$(gid+'_a'); if(!d) return; const open=d.style.display==='none'; d.style.display=open?'block':'none'; if(a) a.textContent=open?'▼':'▶'; }
 async function exportTrace(){
@@ -1233,7 +1236,7 @@ async function exportTrace(){
   const ledger=list.slice().sort((a,b)=> (a.item_code||'').localeCompare(b.item_code||'') || _byDate(a,b));
   const bal={};
   const ledRows=ledger.map(m=>{ const h=Number(m.heads||0); bal[m.item_code]=(bal[m.item_code]||0)+(m.direction==='IN'?h:-h);
-    return {Item:m.item_code,Description:m.description,Brand:m.brand,Direction:m.direction,'Doc No':m.docno,Date:fmtDate(m.docdate),Party:m.custname,'In (heads)':m.direction==='IN'?h:'','Out (heads)':m.direction==='OUT'?h:'','Balance (heads)':bal[m.item_code],Kgs:Number(m.kgs||0),Crate:m.crate,Pallet:m.pallet,'Prod Date':fmtDate(m.prod_date),'Exp Date':fmtDate(m.exp_date),Remarks:m.remarks}; });
+    return {Item:m.item_code,Description:m.description,Brand:m.brand,Direction:m.direction,'Doc No':m.docno,Date:fmtDate(m.docdate),Party:m.custname,'In (heads)':m.direction==='IN'?h:'','Out (heads)':m.direction==='OUT'?h:'','Balance (heads)':bal[m.item_code],Kgs:Number(m.kgs||0),Crate:m.crate,Pallet:m.pallet,'Prod Date':fmtDate(m.prod_date),'Exp Date':fmtDate(m.exp_date),Remarks:m.remarks,'Checked By':m.checked_by,'Checked At':m.checked_at,'Verified By':m.verified_by,'Verified At':m.verified_at,'Approved By':m.approved_by,'Approved At':m.approved_at_txt}; });
   const wb=XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(sumRows), 'Summary');
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(ledRows), 'Movements');
