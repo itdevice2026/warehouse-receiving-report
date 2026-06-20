@@ -240,7 +240,7 @@ table.admin-tbl select{padding:5px 7px;border:1px solid #cdd4cd;border-radius:6p
         <button class="btn ghost" type="button" style="padding:4px 9px;font-size:12px" onclick="document.getElementById('guideFile').click()">Change guide…</button>
         <button class="btn ghost" type="button" id="resetGuideBtn" style="padding:4px 9px;font-size:12px;display:none" onclick="resetGuide()">Reset</button>
         <input type="file" id="guideFile" accept="image/*,application/pdf,.pdf" style="display:none" onchange="changeGuide(event)">
-        <button class="btn ghost" type="button" id="adjustBtn" style="padding:4px 9px;font-size:12px" onclick="toggleAdjust()">Adjust layout</button>
+        <button class="btn ghost app-hidden" type="button" id="adjustBtn" style="padding:4px 9px;font-size:12px" onclick="toggleAdjust()">Adjust layout</button>
         <button class="btn ghost" type="button" id="resetLayoutBtn" style="padding:4px 9px;font-size:12px;display:none" onclick="resetLayout()">Reset layout</button>
         <span class="badge" id="rowBadge">0 rows</span>
       </div>
@@ -400,6 +400,9 @@ const $=id=>document.getElementById(id);
 
 /* ---------- Fine-alignment layout overrides (device-local) ---------- */
 let adjustMode=false, previewScale=1, dragState=null;
+let layoutLocked = localStorage.getItem('pasei_wrr_layout_locked')==='1';
+function saveLayoutLock(){ try{ localStorage.setItem('pasei_wrr_layout_locked', layoutLocked?'1':'0'); }catch(e){} }
+function updateAdjustBtn(){ const b=$('adjustBtn'); if(!b)return; b.textContent = adjustMode ? 'Done' : (layoutLocked ? '\uD83D\uDD12 Unlock layout' : 'Adjust layout'); b.classList.toggle('active', adjustMode); }
 function loadLayout(){ try{ const l=JSON.parse(localStorage.getItem('pasei_wrr_layout')||'{}'); return {fields:l.fields||{}, cols:l.cols||{}, rowTop:l.rowTop||0}; }catch(e){ return {fields:{},cols:{},rowTop:0}; } }
 function saveLayout(){ try{ localStorage.setItem('pasei_wrr_layout', JSON.stringify(layout)); }catch(e){} }
 let layout = loadLayout();
@@ -593,11 +596,17 @@ function onDrag(e){
 }
 function endDrag(){ dragState=null; document.removeEventListener('mousemove',onDrag); document.removeEventListener('mouseup',endDrag); saveLayout(); }
 function toggleAdjust(){
-  adjustMode=!adjustMode;
-  const b=$('adjustBtn'); if(b){ b.textContent=adjustMode?'Done':'Adjust layout'; b.classList.toggle('active',adjustMode); }
+  if(currentRole!=='admin'){ flash('Only an admin can adjust the layout',true); return; }
+  if(adjustMode){
+    adjustMode=false; layoutLocked=true; saveLayoutLock();
+  } else {
+    if(layoutLocked){ layoutLocked=false; saveLayoutLock(); }
+    adjustMode=true;
+  }
+  updateAdjustBtn();
   $('resetLayoutBtn').style.display=adjustMode?'inline-block':'none';
   render();
-  if(adjustMode) flash('Drag the labels to line up with your form, then click Done');
+  flash(adjustMode ? 'Drag the labels to align, then click Done to lock' : 'Layout locked');
 }
 function resetLayout(){ if(!confirm('Reset all field alignment to default?'))return; layout={fields:{},cols:{},rowTop:0}; saveLayout(); render(); flash('Layout alignment reset'); }
 let COL_PX_current=null;
@@ -709,6 +718,7 @@ async function onSignedIn(){
   $('userEmail').textContent=data.user.email+(currentRole?(' · '+roleTitle(currentRole)):' · no role');
   if($('adminBtn')) $('adminBtn').classList.toggle('app-hidden', currentRole!=='admin');
   if($('itemsBtn')) $('itemsBtn').classList.toggle('app-hidden', currentRole!=='admin');
+  if($('adjustBtn')){ $('adjustBtn').classList.toggle('app-hidden', currentRole!=='admin'); updateAdjustBtn(); }
   await loadItemMaster();
   $('authGate').style.display='none';
   $('appHeader').classList.remove('app-hidden');
