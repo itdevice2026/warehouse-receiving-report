@@ -181,7 +181,7 @@ table.admin-tbl select{padding:5px 7px;border:1px solid #cdd4cd;border-radius:6p
       </div>
       <div class="grid2">
         <div class="field"><label>Address</label><input id="address" oninput="render()"></div>
-        <div class="field"><label>No. (recorded in database only — not printed)</label><input id="docNo" oninput="render()" placeholder="e.g. 0009759"></div>
+        <div class="field"><label>No. — Receiving Report No. <span style="color:var(--red)">*required</span> (saved to database, not printed)</label><input id="docNo" oninput="render()" placeholder="e.g. 0009759"></div>
       </div>
     </div>
 
@@ -664,6 +664,7 @@ async function refreshRecords(){
 async function saveRecord(){
   if(!sb)return;
   if(currentStatus==='approved'){ flash('This report is fully approved and locked',true); return; }
+  if(!($('docNo').value||'').trim()){ flash('Receiving Report Number is required before saving',true); try{$('docNo').focus();}catch(e){} return; }
   const d=readDoc();
   let res;
   if(currentId){ res=await sb.from('wrr_reports').update(d).eq('id',currentId).select().single(); }
