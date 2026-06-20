@@ -162,12 +162,13 @@ table.admin-tbl select{padding:5px 7px;border:1px solid #cdd4cd;border-radius:6p
 <header class="app app-hidden" id="appHeader">
   <div>
     <h1>Pacific Agrisolutions Enterprises Inc. — Warehouse Receiving Report</h1>
-    <div class="sub">Pre-printed form data entry &amp; overlay print system &middot; <span id="buildTag">build 2026-06-20#13</span></div>
+    <div class="sub">Pre-printed form data entry &amp; overlay print system &middot; <span id="buildTag">build 2026-06-20#14</span></div>
   </div>
   <div class="btnrow">
     <span class="userbar"><span class="em" id="userEmail"></span><button class="logout" onclick="doLogout()">Sign out</button></span>
     <button class="btn ghost app-hidden" id="adminBtn" onclick="openAdmin()">Admin</button>
     <button class="btn ghost app-hidden" id="itemsBtn" onclick="openItems()">Items</button>
+    <button class="btn ghost" id="recordsBtn" onclick="openRecords()">Saved Reports</button>
     <button class="btn ghost" onclick="newRecord()">+ New</button>
     <button class="btn" onclick="saveRecord()">Save</button>
     <button class="btn" onclick="window.print()">Print onto form</button>
@@ -296,11 +297,6 @@ table.admin-tbl select{padding:5px 7px;border:1px solid #cdd4cd;border-radius:6p
       <p class="hint">First print on a blank sheet, hold it against a pre-printed form to the light, then nudge Offset X/Y until aligned. Print "Actual size" / 100% scale in the printer dialog. Settings are saved automatically.</p>
       <button class="btn ghost" style="width:100%;margin-top:4px" onclick="resetCal()">Reset calibration</button>
     </div>
-
-    <div class="card">
-      <h2>Saved Reports</h2>
-      <div class="records" id="recordList"></div>
-    </div>
   </div>
 </div>
 
@@ -337,6 +333,19 @@ table.admin-tbl select{padding:5px 7px;border:1px solid #cdd4cd;border-radius:6p
         <input id="itSearch" placeholder="Search code, group, description, brand…" oninput="renderItemsList()" style="padding:6px 9px;border:1px solid #cdd4cd;border-radius:6px;font-size:13px;width:260px">
       </div>
       <div id="itemsList"><div class="empty">Loading…</div></div>
+    </div>
+  </div>
+</div>
+
+<div id="recordsModal" class="modal-overlay" style="display:none">
+  <div class="modal" style="max-width:560px">
+    <div class="modal-head"><h2>Saved Reports</h2><button class="modal-x" onclick="closeRecords()" title="Close">&times;</button></div>
+    <div class="modal-body">
+      <div style="display:flex;align-items:center;gap:10px;margin:0 0 12px">
+        <input id="recSearch" placeholder="Search customer, report no., status…" oninput="renderRecords()" style="flex:1;padding:7px 9px;border:1px solid #cdd4cd;border-radius:6px;font-size:13px">
+        <button class="btn ghost" style="white-space:nowrap" onclick="refreshRecords()">Refresh</button>
+      </div>
+      <div class="records" id="recordList"><div class="empty">Loading…</div></div>
     </div>
   </div>
 </div>
@@ -776,6 +785,7 @@ async function refreshRecords(){
   const {data,error}=await sb.from('wrr_reports').select('*').order('updated_at',{ascending:false});
   if(error){ console.error(error); $('recordList').innerHTML='<div class="empty">Could not load: '+esc(error.message)+'</div>'; return; }
   cachedRecords=data||[];
+  const b=$('recordsBtn'); if(b) b.textContent='Saved Reports ('+cachedRecords.length+')';
   renderRecords();
 }
 async function saveRecord(){
@@ -815,17 +825,18 @@ async function delRecord(id,ev){
   await refreshRecords();
 }
 function renderRecords(){
-  const a=cachedRecords; const box=$('recordList');
-  if(!a.length){box.innerHTML='<div class="empty">No saved reports yet.</div>';return;}
+  let a=cachedRecords.slice(); const box=$('recordList'); if(!box)return;
+  const q=(($('recSearch')&&$('recSearch').value)||'').trim().toLowerCase();
+  if(q) a=a.filter(d=>((d.custname||'')+' '+(d.docno||'')+' '+(d.status||'')+' '+(fmtDate(d.docdate)||'')).toLowerCase().includes(q));
+  if(!a.length){box.innerHTML='<div class="empty">'+(cachedRecords.length?'No matches.':'No saved reports yet.')+'</div>';return;}
   box.innerHTML='';
   a.forEach(d=>{
     const el=document.createElement('div'); el.className='rec'+(d.id===currentId?' active':'');
-    const dt=new Date(d.updated_at||d.created_at||Date.now());
     const its=Array.isArray(d.items)?d.items:[];
-    el.innerHTML=`<div class="meta"><div class="t">${esc(d.custname||'(no customer)')}</div>
+    el.innerHTML=`<div class="meta"><div class="t">${esc(d.custname||'(no customer)')}${d.docno?' · #'+esc(d.docno):''}</div>
       <div class="d">${esc(fmtDate(d.docdate)||'')} · ${its.filter(r=>r.itemCode||r.desc).length} items · ${(d.status||'draft')}</div></div>
       <button class="del" title="Delete">🗑</button>`;
-    el.onclick=()=>loadDoc(d);
+    el.onclick=()=>{ loadDoc(d); closeRecords(); };
     el.querySelector('.del').onclick=ev=>delRecord(d.id,ev);
     box.appendChild(el);
   });
@@ -1006,6 +1017,8 @@ function itemDescWithBrand(it){
 }
 function openItems(){ if(!isAdmin()){ flash('Admin only',true); return; } $('itemsModal').style.display='flex'; loadItemMaster().then(renderItemsList); }
 function closeItems(){ $('itemsModal').style.display='none'; }
+function openRecords(){ $('recordsModal').style.display='flex'; refreshRecords(); }
+function closeRecords(){ $('recordsModal').style.display='none'; }
 function renderItemsList(){
   const box=$('itemsList'); if(!box) return;
   $('itCount').textContent=itemMaster.length;
