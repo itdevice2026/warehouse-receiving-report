@@ -549,7 +549,7 @@ function buildOverlay(target){
     if(align==='right')d.style.paddingRight=PAD+'px';
     if(bold||FB)d.style.fontWeight='bold';
     if(FI)d.style.fontStyle='italic';
-    if(wrap){ d.style.whiteSpace='normal'; d.style.lineHeight='1.02'; d.style.overflow='visible'; }
+    if(wrap){ d.style.whiteSpace='normal'; d.style.lineHeight='1.02'; }
     target.appendChild(d);
   };
   paintFields(place,fontPx);
@@ -706,7 +706,7 @@ function buildOverlayInto(box,pageWin){
     if(align==='right')d.style.paddingRight=PAD+'px';
     if(bold||FB)d.style.fontWeight='bold';
     if(FI)d.style.fontStyle='italic';
-    if(wrap){ d.style.overflow='visible'; }
+    d.style.overflow='hidden';
     box.appendChild(d);
   };
   paintFields(place,fontSheetPx);
