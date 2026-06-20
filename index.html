@@ -524,7 +524,7 @@ function buildOverlay(target){
     if(align==='right')d.style.paddingRight=PAD+'px';
     if(bold||FB)d.style.fontWeight='bold';
     if(FI)d.style.fontStyle='italic';
-    if(wrap){ d.style.whiteSpace='normal'; d.style.lineHeight='1.02'; d.style.overflow='hidden'; d.style.maxHeight=pctT(ROW_H-1)+'%'; }
+    if(wrap){ d.style.whiteSpace='normal'; d.style.lineHeight='1.02'; d.style.overflow='visible'; }
     target.appendChild(d);
   };
   paintFields(place,fontPx);
@@ -675,7 +675,7 @@ function buildOverlayInto(box,pageWin){
     if(align==='right')d.style.paddingRight=PAD+'px';
     if(bold||FB)d.style.fontWeight='bold';
     if(FI)d.style.fontStyle='italic';
-    if(wrap){ d.style.overflow='hidden'; }
+    if(wrap){ d.style.overflow='visible'; }
     box.appendChild(d);
   };
   paintFields(place,fontSheetPx);
