@@ -162,7 +162,7 @@ table.admin-tbl select{padding:5px 7px;border:1px solid #cdd4cd;border-radius:6p
 <header class="app app-hidden" id="appHeader">
   <div>
     <h1>Pacific Agrisolutions Enterprises Inc. — Warehouse Receiving Report</h1>
-    <div class="sub">Pre-printed form data entry &amp; overlay print system &middot; <span id="buildTag">build 2026-06-20#6</span></div>
+    <div class="sub">Pre-printed form data entry &amp; overlay print system &middot; <span id="buildTag">build 2026-06-20#7</span></div>
   </div>
   <div class="btnrow">
     <span class="userbar"><span class="em" id="userEmail"></span><button class="logout" onclick="doLogout()">Sign out</button></span>
@@ -240,8 +240,6 @@ table.admin-tbl select{padding:5px 7px;border:1px solid #cdd4cd;border-radius:6p
         <button class="btn ghost" type="button" id="changeGuideBtn" style="padding:4px 9px;font-size:12px" onclick="document.getElementById('guideFile').click()">Change guide…</button>
         <button class="btn ghost" type="button" id="resetGuideBtn" style="padding:4px 9px;font-size:12px;display:none" onclick="resetGuide()">Reset</button>
         <input type="file" id="guideFile" accept="image/*,application/pdf,.pdf" style="display:none" onchange="changeGuide(event)">
-        <button class="btn ghost app-hidden" type="button" id="adjustBtn" style="padding:4px 9px;font-size:12px" onclick="toggleAdjust()">Adjust layout</button>
-        <button class="btn ghost" type="button" id="resetLayoutBtn" style="padding:4px 9px;font-size:12px;display:none" onclick="resetLayout()">Reset layout</button>
         <span class="badge" id="rowBadge">0 rows</span>
       </div>
       <div class="previewbox">
@@ -420,8 +418,8 @@ async function loadLayoutRemote(){
   }catch(e){ console.warn('layout load:',e.message); }
 }
 let layout = loadLayout();
-function fOff(k){ return layout.fields[k]||{dx:0,dy:0}; }
-function cOff(c){ return (layout.cols[c]&&layout.cols[c].dx)||0; }
+function fOff(k){ return {dx:0,dy:0}; }  /* column/field drag removed; always default */
+function cOff(c){ return 0; }  /* column drag removed; always default */
 
 function blankRow(){return{itemCode:'',desc:'',uom:'',qty:'',weight:'',prodDate:'',expDate:'',pallet:'',remarks:''};}
 
@@ -487,7 +485,7 @@ function fitWidth(t,baseFpx,w,fam){ let f=baseFpx; for(let i=0;i<18 && _measureW
 
 /* ---------- Shared field painter (place: leftPx,topPx,text,align,widthPx,bold) ---------- */
 function paintFields(place,fontSheetPx){
-  const rT=layout.rowTop||0;
+  const rT=0;
   // header
   place(125+fOff('custName').dx,80+fOff('custName').dy,$('custName').value,'left');
   place(95+fOff('address').dx,106+fOff('address').dy,$('address').value,'left');
@@ -577,7 +575,7 @@ function handleDefs(){
   return d;
 }
 function renderHandles(target){
-  const rT=layout.rowTop||0;
+  const rT=0;
   handleDefs().forEach(([label,bx,by,kind,key])=>{
     let x,y;
     if(kind==='cell'){ x=bx+cOff(key); y=by+rT; }
