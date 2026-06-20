@@ -162,7 +162,7 @@ table.admin-tbl select{padding:5px 7px;border:1px solid #cdd4cd;border-radius:6p
 <header class="app app-hidden" id="appHeader">
   <div>
     <h1>Pacific Agrisolutions Enterprises Inc. — Warehouse Receiving Report</h1>
-    <div class="sub">Pre-printed form data entry &amp; overlay print system &middot; <span id="buildTag">build 2026-06-20#9</span></div>
+    <div class="sub">Pre-printed form data entry &amp; overlay print system &middot; <span id="buildTag">build 2026-06-20#10</span></div>
   </div>
   <div class="btnrow">
     <span class="userbar"><span class="em" id="userEmail"></span><button class="logout" onclick="doLogout()">Sign out</button></span>
@@ -579,11 +579,12 @@ function handleDefs(){
 function renderHandles(target){
   const rT=layout.gy||0;
   handleDefs().forEach(([label,bx,by,kind,key])=>{
-    let x,y;
-    if(kind==='cell'){ x=bx+cOff(key); y=by+rT; }
+    let x,y,centered=false;
+    if(kind==='cell'){ const c=COL_PX[key]; x=(c?(c[0]+c[1])/2:bx)+cOff(key); y=by+rT; centered=true; }
     else { const o=fOff(key); const extraY=(key==='totQty'||key==='totWt')?rT:0; x=bx+o.dx; y=by+o.dy+extraY; }
     const d=document.createElement('div'); d.className='ah'; d.textContent=label;
     d.style.left=pctL(x)+'%'; d.style.top=pctT(y)+'%';
+    if(centered) d.style.transform='translateX(-50%)';
     d.dataset.kind=kind; d.dataset.key=key;
     d.addEventListener('mousedown',startDrag);
     target.appendChild(d);
