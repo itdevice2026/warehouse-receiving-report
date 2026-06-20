@@ -916,10 +916,11 @@ async function loadAdminUsers(){
   const me=currentUser?currentUser.email:'';
   const rows=(data||[]).map(u=>{
     const cur=Array.isArray(u.roles)?u.roles:[];
-    const checks=ROLE_LIST.map(([v,l])=>'<label style="display:inline-flex;align-items:center;gap:3px;margin-right:8px;white-space:nowrap"><input type="checkbox" class="rolechk" value="'+v+'"'+(cur.indexOf(v)>=0?' checked':'')+' onchange="adminSetRoles(this.closest(\'tr\').dataset.email)"> '+l+'</label>').join('');
+    const checks=ROLE_LIST.map(([v,l])=>'<label style="display:inline-flex;align-items:center;gap:3px;margin-right:8px;white-space:nowrap"><input type="checkbox" class="rolechk" value="'+v+'"'+(cur.indexOf(v)>=0?' checked':'')+' onchange="adminSaveUser(this.closest(\'tr\').dataset.email)"> '+l+'</label>').join('');
     const isMe=u.email===me;
     return '<tr data-email="'+esc(u.email)+'">'+
-      '<td><div class="usr-email">'+esc(u.email)+(isMe?'<span class="tag-you">you</span>':'')+'</div><div class="usr-sub">'+esc(u.name||'')+'</div></td>'+
+      '<td><div class="usr-email">'+esc(u.email)+(isMe?'<span class="tag-you">you</span>':'')+'</div>'+
+      '<input class="namein" value="'+esc(u.name||'')+'" placeholder="Full name (for signature)" onchange="adminSaveUser(this.closest(\'tr\').dataset.email)" style="margin-top:4px;width:190px;padding:4px 6px;border:1px solid #cdd4cd;border-radius:5px;font-size:12px"></td>'+
       '<td style="min-width:230px">'+checks+'</td>'+
       '<td>'+(u.disabled?'<span class="tag-off">Disabled</span>':'<span class="tag-active">Active</span>')+'</td>'+
       '<td style="text-align:right;white-space:nowrap"><button class="mini" onclick="adminResetPw(this.closest(\'tr\').dataset.email)">Reset password</button>'+
@@ -928,12 +929,13 @@ async function loadAdminUsers(){
   }).join('');
   box.innerHTML='<table class="admin-tbl"><thead><tr><th>User</th><th>Roles</th><th>Status</th><th></th></tr></thead><tbody>'+rows+'</tbody></table>';
 }
-async function adminSetRoles(email){
+async function adminSaveUser(email){
   const tr=document.querySelector('#adminUsers tr[data-email="'+cssesc(email)+'"]');
-  const name=tr?tr.querySelector('.usr-sub').textContent:'';
+  const name=tr&&tr.querySelector('.namein')?tr.querySelector('.namein').value.trim():'';
   const roles=tr?[...tr.querySelectorAll('.rolechk:checked')].map(c=>c.value):[];
+  if(!roles.length){ flash('Tick at least one role (or use Disable to remove access)',true); loadAdminUsers(); return; }
   const {error}=await sb.rpc('wrr_admin_set_roles',{p_email:email,p_name:name,p_roles:roles});
-  if(error){ flash(error.message,true); } else { flash('Roles updated'); }
+  if(error){ flash(error.message,true); } else { flash('Saved'); }
   loadAdminUsers();
 }
 async function adminCreateUser(){
