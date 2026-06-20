@@ -101,6 +101,9 @@ button.warn:hover{background:#f6d5d0}
 .admin-add{background:#f4f6f3;border:1px solid var(--line);border-radius:10px;padding:14px}
 .admin-add-grid{display:grid;grid-template-columns:1.4fr 1.4fr 1.2fr 1.2fr auto;gap:8px}
 .admin-add-grid input,.admin-add-grid select{padding:8px 9px;border:1px solid #cdd4cd;border-radius:6px;font-size:13px}
+.item-add-grid{display:grid;grid-template-columns:1fr 1fr 1.7fr 1fr .9fr auto;gap:8px}
+.item-add-grid input,.item-add-grid select{padding:8px 9px;border:1px solid #cdd4cd;border-radius:6px;font-size:13px}
+@media(max-width:680px){.item-add-grid{grid-template-columns:1fr 1fr}}
 @media(max-width:680px){.admin-add-grid{grid-template-columns:1fr 1fr}}
 table.admin-tbl{width:100%;border-collapse:collapse;font-size:13px}
 table.admin-tbl th{text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.4px;color:var(--muted);padding:7px 8px;border-bottom:2px solid #e3e8e3}
@@ -164,6 +167,7 @@ table.admin-tbl select{padding:5px 7px;border:1px solid #cdd4cd;border-radius:6p
   <div class="btnrow">
     <span class="userbar"><span class="em" id="userEmail"></span><button class="logout" onclick="doLogout()">Sign out</button></span>
     <button class="btn ghost app-hidden" id="adminBtn" onclick="openAdmin()">Admin</button>
+    <button class="btn ghost app-hidden" id="itemsBtn" onclick="openItems()">Items</button>
     <button class="btn ghost" onclick="newRecord()">+ New</button>
     <button class="btn" onclick="saveRecord()">Save</button>
     <button class="btn" onclick="window.print()">Print onto form</button>
@@ -285,6 +289,42 @@ table.admin-tbl select{padding:5px 7px;border:1px solid #cdd4cd;border-radius:6p
 </div>
 
 <!-- Admin / RBAC modal -->
+<datalist id="itemCodeList"></datalist>
+
+<!-- Item Code Master modal (admin) -->
+<div id="itemsModal" class="modal-overlay" style="display:none">
+  <div class="modal" style="max-width:880px">
+    <div class="modal-head"><h2>Item Code Master</h2><button class="modal-x" onclick="closeItems()" title="Close">&times;</button></div>
+    <div class="modal-body">
+      <div class="admin-add">
+        <h3>Add / edit item</h3>
+        <div class="item-add-grid">
+          <input id="itCode" placeholder="Item Code *">
+          <input id="itGroup" placeholder="Item Group">
+          <input id="itDesc" placeholder="Item Description">
+          <input id="itBrand" placeholder="Brand">
+          <select id="itStatus"><option>Active</option><option>Inactive</option></select>
+          <button class="btn" onclick="itemSave()">Save item</button>
+        </div>
+        <div class="hint" style="margin-top:6px">Saving an existing Item Code updates it (Item Code is the unique key).</div>
+      </div>
+      <div class="admin-add" style="margin-top:12px">
+        <h3>Mass upload (Excel .xlsx)</h3>
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+          <input type="file" id="itXlsx" accept=".xlsx,.xls" onchange="itemExcel(event)">
+          <span class="hint" id="itXlsxNote"></span>
+        </div>
+        <div class="hint" style="margin-top:6px">Header row columns: <b>Item Code</b>, Item Group, Item Description, Brand, Status. Item Code is required; existing codes are updated.</div>
+      </div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin:16px 0 8px">
+        <h3 style="margin:0">Items (<span id="itCount">0</span>)</h3>
+        <input id="itSearch" placeholder="Search code, group, description, brand…" oninput="renderItemsList()" style="padding:6px 9px;border:1px solid #cdd4cd;border-radius:6px;font-size:13px;width:260px">
+      </div>
+      <div id="itemsList"><div class="empty">Loading…</div></div>
+    </div>
+  </div>
+</div>
+
 <div id="adminModal" class="modal-overlay" style="display:none">
   <div class="modal">
     <div class="modal-head">
@@ -367,11 +407,20 @@ function renderItemsTable(){
       ['itemCode',''],['desc',''],['uom','ctr'],['qty','num'],['weight','num'],
       ['prodDate','ctr'],['expDate','ctr'],['pallet','ctr'],['remarks','']
     ];
+    const refs={};
     cells.forEach(([k,cls])=>{
       const td=document.createElement('td'); td.className=cls;
       const inp=document.createElement('input');
       inp.value=r[k]||'';
       inp.oninput=e=>{items[i][k]=e.target.value; render();};
+      if(k==='itemCode'){
+        inp.setAttribute('list','itemCodeList');
+        inp.addEventListener('change',e=>{
+          const m=itemMap[(e.target.value||'').trim().toLowerCase()];
+          if(m){ items[i].desc=m.description||''; if(refs.desc) refs.desc.value=items[i].desc; render(); }
+        });
+      }
+      refs[k]=inp;
       td.appendChild(inp); tr.appendChild(td);
     });
     const rm=document.createElement('td'); rm.className='rm';
@@ -626,6 +675,8 @@ async function onSignedIn(){
   currentName=roleRow?(roleRow.name||data.user.email):null;
   $('userEmail').textContent=data.user.email+(currentRole?(' · '+roleTitle(currentRole)):' · no role');
   if($('adminBtn')) $('adminBtn').classList.toggle('app-hidden', currentRole!=='admin');
+  if($('itemsBtn')) $('itemsBtn').classList.toggle('app-hidden', currentRole!=='admin');
+  await loadItemMaster();
   $('authGate').style.display='none';
   $('appHeader').classList.remove('app-hidden');
   $('appWrap').classList.remove('app-hidden');
@@ -839,6 +890,106 @@ async function adminToggleDisabled(email,disable){
   const {error}=await sb.rpc('wrr_admin_set_disabled',{p_email:email,p_disabled:disable});
   if(error){ flash(error.message,true); return; }
   flash(disable?'User disabled':'User enabled'); loadAdminUsers();
+}
+
+
+/* ---------- Item Code master ---------- */
+let itemMaster=[], itemMap={};
+async function loadItemMaster(){
+  if(!sb) return;
+  const {data,error}=await sb.from('wrr_items').select('item_code,item_group,description,brand,status').order('item_code');
+  if(error){ console.warn('item master load:',error.message); return; }
+  itemMaster=data||[];
+  itemMap={};
+  itemMaster.forEach(it=>{ if(it.status==='Active') itemMap[(it.item_code||'').trim().toLowerCase()]=it; });
+  buildItemDatalist();
+}
+function buildItemDatalist(){
+  const dl=$('itemCodeList'); if(!dl) return;
+  dl.innerHTML=itemMaster.filter(it=>it.status==='Active')
+    .map(it=>'<option value="'+esc(it.item_code)+'">'+esc(it.description||'')+'</option>').join('');
+}
+function openItems(){ if(currentRole!=='admin'){ flash('Admin only',true); return; } $('itemsModal').style.display='flex'; loadItemMaster().then(renderItemsList); }
+function closeItems(){ $('itemsModal').style.display='none'; }
+function renderItemsList(){
+  const box=$('itemsList'); if(!box) return;
+  $('itCount').textContent=itemMaster.length;
+  const q=($('itSearch').value||'').trim().toLowerCase();
+  let list=itemMaster.slice();
+  if(q) list=list.filter(it=>[it.item_code,it.item_group,it.description,it.brand].join(' ').toLowerCase().includes(q));
+  if(!list.length){ box.innerHTML='<div class="empty">No items'+(q?' match your search':' yet')+'.</div>'; return; }
+  box.innerHTML='<table class="admin-tbl"><thead><tr><th>Code</th><th>Group</th><th>Description</th><th>Brand</th><th>Status</th><th></th></tr></thead><tbody>'+
+    list.map(it=>'<tr data-code="'+esc(it.item_code)+'">'+
+      '<td class="usr-email">'+esc(it.item_code)+'</td><td>'+esc(it.item_group||'')+'</td><td>'+esc(it.description||'')+'</td><td>'+esc(it.brand||'')+'</td>'+
+      '<td>'+(it.status==='Active'?'<span class="tag-active">Active</span>':'<span class="tag-off">Inactive</span>')+'</td>'+
+      '<td style="text-align:right;white-space:nowrap"><button class="mini" onclick="itemEdit(this.closest(\'tr\').dataset.code)">Edit</button> '+
+      '<button class="mini warn" onclick="itemDelete(this.closest(\'tr\').dataset.code)">Delete</button></td></tr>').join('')+
+    '</tbody></table>';
+}
+function itemEdit(code){
+  const it=itemMaster.find(x=>x.item_code===code); if(!it) return;
+  $('itCode').value=it.item_code; $('itGroup').value=it.item_group||''; $('itDesc').value=it.description||'';
+  $('itBrand').value=it.brand||''; $('itStatus').value=it.status||'Active';
+  try{ $('itCode').scrollIntoView({block:'nearest'}); $('itGroup').focus(); }catch(e){}
+}
+async function itemSave(){
+  const code=($('itCode').value||'').trim();
+  if(!code){ flash('Item Code is required',true); return; }
+  const row={item_code:code, item_group:($('itGroup').value||'').trim()||null, description:($('itDesc').value||'').trim()||null,
+             brand:($('itBrand').value||'').trim()||null, status:$('itStatus').value||'Active'};
+  const {error}=await sb.from('wrr_items').upsert(row,{onConflict:'item_code'});
+  if(error){ flash(error.message,true); return; }
+  flash('Item saved');
+  ['itCode','itGroup','itDesc','itBrand'].forEach(id=>$(id).value=''); $('itStatus').value='Active';
+  await loadItemMaster(); renderItemsList();
+}
+async function itemDelete(code){
+  if(!confirm('Delete item '+code+'?')) return;
+  const {error}=await sb.from('wrr_items').delete().eq('item_code',code);
+  if(error){ flash(error.message,true); return; }
+  flash('Item deleted'); await loadItemMaster(); renderItemsList();
+}
+function ensureXlsx(){
+  return new Promise((res,rej)=>{
+    if(window.XLSX){res();return;}
+    const s=document.createElement('script');
+    s.src='https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+    s.onload=()=>res(); s.onerror=()=>rej(new Error('Could not load Excel library (check connection)'));
+    document.head.appendChild(s);
+  });
+}
+function xlPick(obj,names){ for(const k in obj){ if(names.indexOf(k.trim().toLowerCase())>=0) return obj[k]; } return ''; }
+async function itemExcel(e){
+  const f=e.target.files&&e.target.files[0]; if(!f) return;
+  const note=$('itXlsxNote'); note.textContent='Reading…';
+  try{
+    await ensureXlsx();
+    const wb=XLSX.read(await f.arrayBuffer(),{type:'array'});
+    const ws=wb.Sheets[wb.SheetNames[0]];
+    const json=XLSX.utils.sheet_to_json(ws,{defval:''});
+    const map={};
+    json.forEach(r=>{
+      const code=(''+xlPick(r,['item code','code','itemcode','item_code'])).trim();
+      if(!code) return;
+      let st=(''+xlPick(r,['status'])).trim();
+      st = st ? (/inactive|disable|^no$|^0$/i.test(st)?'Inactive':'Active') : 'Active';
+      map[code.toLowerCase()]={item_code:code,
+        item_group:(''+xlPick(r,['item group','group','item_group'])).trim()||null,
+        description:(''+xlPick(r,['item description','description','desc','item_description'])).trim()||null,
+        brand:(''+xlPick(r,['brand'])).trim()||null, status:st};
+    });
+    const rows=Object.values(map);
+    if(!rows.length){ note.textContent='No rows with an Item Code were found.'; e.target.value=''; return; }
+    note.textContent='Uploading '+rows.length+' items…';
+    let done=0;
+    for(let i=0;i<rows.length;i+=500){
+      const {error}=await sb.from('wrr_items').upsert(rows.slice(i,i+500),{onConflict:'item_code'});
+      if(error){ note.textContent='Error: '+error.message; e.target.value=''; return; }
+      done+=Math.min(500,rows.length-i);
+    }
+    note.textContent='Imported '+done+' items.'; flash('Imported '+done+' items'); e.target.value='';
+    await loadItemMaster(); renderItemsList();
+  }catch(err){ note.textContent='Failed: '+(err.message||err); e.target.value=''; }
 }
 
 /* ---------- Settings persistence ---------- */
