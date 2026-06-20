@@ -289,6 +289,10 @@ table.admin-tbl select{padding:5px 7px;border:1px solid #cdd4cd;border-radius:6p
           <option value='Georgia, serif'>Georgia</option>
         </select><span></span>
       </div>
+      <div class="cal-row"><label>Style</label>
+        <label class="toggle" style="margin:0;text-transform:none;letter-spacing:0"><input type="checkbox" id="fontBold" onchange="render()"> Bold</label>
+        <label class="toggle" style="margin:0;text-transform:none;letter-spacing:0"><input type="checkbox" id="fontItalic" onchange="render()"> Italic</label>
+      </div>
       <p class="hint">First print on a blank sheet, hold it against a pre-printed form to the light, then nudge Offset X/Y until aligned. Print "Actual size" / 100% scale in the printer dialog. Settings are saved automatically.</p>
       <button class="btn ghost" style="width:100%;margin-top:4px" onclick="resetCal()">Reset calibration</button>
     </div>
@@ -508,7 +512,7 @@ function buildOverlay(target){
   const pageWin=num($('pageW').value)||9.5;
   const fontPt=num($('fontPt').value)||8.5;
   const fontPx=fontPt*(SHEET_W/(pageWin*72));
-  const FF=fontFam();
+  const FF=fontFam(); const FB=$("fontBold")&&$("fontBold").checked; const FI=$("fontItalic")&&$("fontItalic").checked;
   const place=(leftPx,topPx,text,align,widthPx,bold,wrap)=>{
     if(text==='' || text==null)return;
     const d=document.createElement('div');d.className='ov';d.textContent=text;
@@ -518,7 +522,8 @@ function buildOverlay(target){
     if(widthPx)d.style.width=pctL(widthPx)+'%';
     if(align==='left')d.style.paddingLeft=PAD+'px';
     if(align==='right')d.style.paddingRight=PAD+'px';
-    if(bold)d.style.fontWeight='bold';
+    if(bold||FB)d.style.fontWeight='bold';
+    if(FI)d.style.fontStyle='italic';
     if(wrap){ d.style.whiteSpace='normal'; d.style.lineHeight='1.02'; d.style.overflow='hidden'; d.style.maxHeight=pctT(ROW_H-1)+'%'; }
     target.appendChild(d);
   };
@@ -657,7 +662,7 @@ function buildOverlayInto(box,pageWin){
   const fontPt=num($('fontPt').value)||8.5;
   const fontPx=fontPt/72*96;                       // pt -> px at 96dpi for actual glyph size
   const fontSheetPx=fontPt*(SHEET_W/(pageWin*72)); // pt in 641px sheet space for vertical centering math
-  const FF=fontFam();
+  const FF=fontFam(); const FB=$("fontBold")&&$("fontBold").checked; const FI=$("fontItalic")&&$("fontItalic").checked;
   const place=(leftPx,topPx,text,align,widthPx,bold,wrap)=>{
     if(text==='' || text==null)return;
     const d=document.createElement('div');d.className='ov';d.textContent=text;
@@ -668,7 +673,8 @@ function buildOverlayInto(box,pageWin){
     if(widthPx)d.style.width=pctL(widthPx)+'%';
     if(align==='left')d.style.paddingLeft=PAD+'px';
     if(align==='right')d.style.paddingRight=PAD+'px';
-    if(bold)d.style.fontWeight='bold';
+    if(bold||FB)d.style.fontWeight='bold';
+    if(FI)d.style.fontStyle='italic';
     if(wrap){ d.style.overflow='hidden'; }
     box.appendChild(d);
   };
@@ -1046,13 +1052,15 @@ async function itemExcel(e){
 /* ---------- Settings persistence ---------- */
 function saveSettings(){
   const s={};['offX','offY','sclX','sclY','pageW','pageH','fontPt','fontFamily'].forEach(id=>s[id]=$(id).value);
-  s.showGuide=$('showGuide').checked;
+  s.showGuide=$('showGuide').checked; s.fontBold=$('fontBold').checked; s.fontItalic=$('fontItalic').checked;
   localStorage.setItem(LS_SET,JSON.stringify(s));
 }
 function loadSettings(){
   try{const s=JSON.parse(localStorage.getItem(LS_SET)||'{}');
     ['offX','offY','sclX','sclY','pageW','pageH','fontPt','fontFamily'].forEach(id=>{if(s[id]!==undefined)$(id).value=s[id];});
     if(s.showGuide!==undefined)$('showGuide').checked=s.showGuide;
+    if(s.fontBold!==undefined)$('fontBold').checked=s.fontBold;
+    if(s.fontItalic!==undefined)$('fontItalic').checked=s.fontItalic;
   }catch(e){}
 }
 function resetCal(){
