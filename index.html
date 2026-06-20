@@ -411,7 +411,8 @@ function renderItemsTable(){
     cells.forEach(([k,cls])=>{
       const td=document.createElement('td'); td.className=cls;
       const inp=document.createElement('input');
-      inp.value=r[k]||'';
+      if(k==='prodDate'||k==='expDate'){ inp.type='date'; inp.value=toInputDate(r[k]||''); }
+      else { inp.value=r[k]||''; }
       inp.oninput=e=>{items[i][k]=e.target.value; render();};
       if(k==='itemCode'){
         inp.setAttribute('list','itemCodeList');
@@ -457,7 +458,8 @@ function paintFields(place,fontSheetPx){
     if(i>=MAX_ROWS)return;
     const yTop=ROW_TOP+i*ROW_H+(ROW_H-fontSheetPx)/2-1+rT;
     for(const k in COL_PX){
-      const v=r[k]; if(v==='' || v==null)continue;
+      let v=r[k]; if(v==='' || v==null)continue;
+      if(k==='prodDate'||k==='expDate') v=fmtDate(v);
       const [lpx,rpx]=COL_PX[k];
       place(lpx+cOff(k),yTop,v,ALIGN[k],rpx-lpx);
     }
