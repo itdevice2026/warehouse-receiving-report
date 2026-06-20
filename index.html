@@ -192,6 +192,9 @@ button.warn:hover{background:#f6d5d0}
       <h2>Live Preview</h2>
       <div class="field-toolbar">
         <label class="toggle"><input type="checkbox" id="showGuide" checked onchange="render()"> Show form guide</label>
+        <button class="btn ghost" type="button" style="padding:4px 9px;font-size:12px" onclick="document.getElementById('guideFile').click()">Change guide…</button>
+        <button class="btn ghost" type="button" id="resetGuideBtn" style="padding:4px 9px;font-size:12px;display:none" onclick="resetGuide()">Reset</button>
+        <input type="file" id="guideFile" accept="image/*" style="display:none" onchange="changeGuide(event)">
         <span class="badge" id="rowBadge">0 rows</span>
       </div>
       <div class="previewbox">
@@ -341,7 +344,7 @@ function buildOverlay(target){
   target.innerHTML='';
   // guide image (screen only)
   if(target.id==='sheet' && $('showGuide').checked){
-    const img=document.createElement('img'); img.className='guide'; img.src=FORM_IMG; target.appendChild(img);
+    const img=document.createElement('img'); img.className='guide'; img.src=guideSrc; target.appendChild(img);
   }
   const pageWin=num($('pageW').value)||9.5;
   const fontPt=num($('fontPt').value)||8.5;
@@ -558,6 +561,19 @@ function flash(msg,isErr){
   f.style.cssText='position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:'+(isErr?'#c0271a':'#1b5e20')+';color:#fff;padding:10px 18px;border-radius:8px;font-size:13px;z-index:99;box-shadow:0 4px 14px rgba(0,0,0,.25)';
   document.body.appendChild(f);setTimeout(()=>f.remove(),isErr?2600:1400);
 }
+
+/* ---------- Form guide image (device-local override) ---------- */
+let guideSrc = localStorage.getItem('pasei_wrr_guide') || FORM_IMG;
+function applyGuideBtn(){ const b=document.getElementById('resetGuideBtn'); if(b) b.style.display = localStorage.getItem('pasei_wrr_guide') ? 'inline-block' : 'none'; }
+function changeGuide(e){
+  const f=e.target.files && e.target.files[0]; if(!f) return;
+  if(!/^image\//.test(f.type)){ flash('Please choose an image file',true); e.target.value=''; return; }
+  const r=new FileReader();
+  r.onload=()=>{ try{ guideSrc=r.result; localStorage.setItem('pasei_wrr_guide',guideSrc); }catch(err){ flash('Image too large to save on this device',true); return; } if(!$('showGuide').checked) $('showGuide').checked=true; applyGuideBtn(); render(); flash('Form guide updated'); };
+  r.readAsDataURL(f); e.target.value='';
+}
+function resetGuide(){ localStorage.removeItem('pasei_wrr_guide'); guideSrc=FORM_IMG; applyGuideBtn(); render(); flash('Form guide reset to default'); }
+applyGuideBtn();
 
 /* ---------- Init ---------- */
 window.addEventListener('resize',fitPreview);
