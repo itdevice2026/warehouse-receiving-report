@@ -74,6 +74,10 @@ button.warn:hover{background:#f6d5d0}
 #sheet .guide{position:absolute;inset:0;width:100%;height:100%;opacity:.5;pointer-events:none}
 #sheet .ov{position:absolute;color:#111;font-family:"Courier New",monospace;font-size:11px;line-height:1;white-space:nowrap;overflow:hidden}
 .field-toolbar{display:flex;gap:8px;align-items:center;margin-bottom:10px;flex-wrap:wrap}
+.ah{position:absolute;font-family:-apple-system,Segoe UI,Arial,sans-serif;font-size:8px;line-height:1;color:#0b6b3a;background:rgba(255,255,255,.82);border:1px solid #0b6b3a;border-radius:3px;padding:1px 3px;white-space:nowrap;cursor:move;user-select:none;z-index:5;box-shadow:0 1px 2px rgba(0,0,0,.25)}
+.ah:hover{background:#eaf5ec}
+.ah.drag{background:#0b6b3a;color:#fff}
+.btn.active,button.ghost.active{background:#0b6b3a;color:#fff}
 
 @media print{
   @page{ size:var(--pw) var(--ph); margin:0 }
@@ -195,6 +199,8 @@ button.warn:hover{background:#f6d5d0}
         <button class="btn ghost" type="button" style="padding:4px 9px;font-size:12px" onclick="document.getElementById('guideFile').click()">Change guide…</button>
         <button class="btn ghost" type="button" id="resetGuideBtn" style="padding:4px 9px;font-size:12px;display:none" onclick="resetGuide()">Reset</button>
         <input type="file" id="guideFile" accept="image/*,application/pdf,.pdf" style="display:none" onchange="changeGuide(event)">
+        <button class="btn ghost" type="button" id="adjustBtn" style="padding:4px 9px;font-size:12px" onclick="toggleAdjust()">Adjust layout</button>
+        <button class="btn ghost" type="button" id="resetLayoutBtn" style="padding:4px 9px;font-size:12px;display:none" onclick="resetLayout()">Reset layout</button>
         <span class="badge" id="rowBadge">0 rows</span>
       </div>
       <div class="previewbox">
@@ -267,6 +273,14 @@ let items=[];
 let currentId=null;
 const $=id=>document.getElementById(id);
 
+/* ---------- Fine-alignment layout overrides (device-local) ---------- */
+let adjustMode=false, previewScale=1, dragState=null;
+function loadLayout(){ try{ const l=JSON.parse(localStorage.getItem('pasei_wrr_layout')||'{}'); return {fields:l.fields||{}, cols:l.cols||{}, rowTop:l.rowTop||0}; }catch(e){ return {fields:{},cols:{},rowTop:0}; } }
+function saveLayout(){ try{ localStorage.setItem('pasei_wrr_layout', JSON.stringify(layout)); }catch(e){} }
+let layout = loadLayout();
+function fOff(k){ return layout.fields[k]||{dx:0,dy:0}; }
+function cOff(c){ return (layout.cols[c]&&layout.cols[c].dx)||0; }
+
 function blankRow(){return{itemCode:'',desc:'',uom:'',qty:'',weight:'',prodDate:'',expDate:'',pallet:'',remarks:''};}
 
 function addRow(data){
@@ -309,46 +323,51 @@ function fmt(n){return Number.isInteger(n)?String(n):n.toFixed(2);}
 
 /* ---------- Shared field painter (place: leftPx,topPx,text,align,widthPx,bold) ---------- */
 function paintFields(place,fontSheetPx){
+  const rT=layout.rowTop||0;
   // header
-  place(125,80,$('custName').value,'left');
-  place(95,106,$('address').value,'left');
-  place(470,72,fmtDate($('docDate').value),'left');
-  place(478,95,$('docNo').value,'left');
+  place(125+fOff('custName').dx,80+fOff('custName').dy,$('custName').value,'left');
+  place(95+fOff('address').dx,106+fOff('address').dy,$('address').value,'left');
+  place(470+fOff('docDate').dx,72+fOff('docDate').dy,fmtDate($('docDate').value),'left');
+  place(478+fOff('docNo').dx,95+fOff('docNo').dy,$('docNo').value,'left');
   // line items
   items.forEach((r,i)=>{
     if(i>=MAX_ROWS)return;
-    const yTop=ROW_TOP+i*ROW_H+(ROW_H-fontSheetPx)/2-1;
+    const yTop=ROW_TOP+i*ROW_H+(ROW_H-fontSheetPx)/2-1+rT;
     for(const k in COL_PX){
       const v=r[k]; if(v==='' || v==null)continue;
       const [lpx,rpx]=COL_PX[k];
-      place(lpx,yTop,v,ALIGN[k],rpx-lpx);
+      place(lpx+cOff(k),yTop,v,ALIGN[k],rpx-lpx);
     }
   });
   // totals
-  const t=computeTotals(); const yT=TOTAL_Y+(ROW_H-fontSheetPx)/2-1;
-  if(t.q)place(COL_PX.qty[0],yT,fmt(t.q),'right',COL_PX.qty[1]-COL_PX.qty[0],true);
-  if(t.w)place(COL_PX.weight[0],yT,fmt(t.w),'right',COL_PX.weight[1]-COL_PX.weight[0],true);
+  const t=computeTotals(); const yT=TOTAL_Y+(ROW_H-fontSheetPx)/2-1+rT;
+  if(t.q)place(COL_PX.qty[0]+fOff('totQty').dx,yT+fOff('totQty').dy,fmt(t.q),'right',COL_PX.qty[1]-COL_PX.qty[0],true);
+  if(t.w)place(COL_PX.weight[0]+fOff('totWt').dx,yT+fOff('totWt').dy,fmt(t.w),'right',COL_PX.weight[1]-COL_PX.weight[0],true);
   // signatories
-  place(70,628,$('checkedName').value,'left');
-  place(250,640,$('checkedDate').value,'left');
-  place(70,686,$('verifiedName').value,'left');
-  place(250,698,$('verifiedDate').value,'left');
-  place(70,744,$('approvedName').value,'left');
-  place(250,756,$('approvedDate').value,'left');
-  place(360,686,$('ackName').value,'left');
-  place(540,698,$('ackDate').value,'left');
+  const S=(k,x,y,txt)=>place(x+fOff(k).dx,y+fOff(k).dy,txt,'left');
+  S('checkedName',70,628,$('checkedName').value);
+  S('checkedDate',250,640,$('checkedDate').value);
+  S('verifiedName',70,686,$('verifiedName').value);
+  S('verifiedDate',250,698,$('verifiedDate').value);
+  S('approvedName',70,744,$('approvedName').value);
+  S('approvedDate',250,756,$('approvedDate').value);
+  S('ackName',360,686,$('ackName').value);
+  S('ackDate',540,698,$('ackDate').value);
 }
 
 /* ---------- Build overlay elements (preview, in 641px sheet space) ---------- */
+function addGuide(target){ const img=document.createElement('img'); img.className='guide'; img.src=guideSrc; target.appendChild(img); }
+
 function buildOverlay(target){
   target.innerHTML='';
-  // guide image (screen only)
-  if(target.id==='sheet' && $('showGuide').checked){
-    const img=document.createElement('img'); img.className='guide'; img.src=guideSrc; target.appendChild(img);
+  if(adjustMode && target.id==='sheet'){
+    addGuide(target);
+    renderHandles(target);
+    return;
   }
+  if(target.id==='sheet' && $('showGuide').checked){ addGuide(target); }
   const pageWin=num($('pageW').value)||9.5;
   const fontPt=num($('fontPt').value)||8.5;
-  // font size expressed in sheet (641px) space so preview matches print proportionally
   const fontPx=fontPt*(SHEET_W/(pageWin*72));
   const place=(leftPx,topPx,text,align,widthPx,bold)=>{
     if(text==='' || text==null)return;
@@ -363,6 +382,78 @@ function buildOverlay(target){
   };
   paintFields(place,fontPx);
 }
+
+/* ---------- Drag-to-align handles ---------- */
+const COL_LABELS={itemCode:'Item Code',desc:'Description',uom:'CRATES',qty:'HEADS',weight:'KGS',prodDate:'Prod Date',expDate:'Exp Date',pallet:'Pallet',remarks:'Remarks'};
+function handleDefs(){
+  const d=[];
+  d.push(['Customer',125,80,'field','custName']);
+  d.push(['Address',95,106,'field','address']);
+  d.push(['Date',470,72,'field','docDate']);
+  d.push(['No.',478,95,'field','docNo']);
+  for(const c in COL_PX){ d.push([COL_LABELS[c]||c, COL_PX[c][0], ROW_TOP, 'cell', c]); }
+  d.push(['Total HEADS',COL_PX.qty[0],TOTAL_Y,'field','totQty']);
+  d.push(['Total KGS',COL_PX.weight[0],TOTAL_Y,'field','totWt']);
+  d.push(['Checked by',70,628,'field','checkedName']);
+  d.push(['Date/Time',250,640,'field','checkedDate']);
+  d.push(['Verified by',70,686,'field','verifiedName']);
+  d.push(['Date/Time',250,698,'field','verifiedDate']);
+  d.push(['Approved by',70,744,'field','approvedName']);
+  d.push(['Date/Time',250,756,'field','approvedDate']);
+  d.push(['Acknowledged',360,686,'field','ackName']);
+  d.push(['Date/Time',540,698,'field','ackDate']);
+  return d;
+}
+function renderHandles(target){
+  const rT=layout.rowTop||0;
+  handleDefs().forEach(([label,bx,by,kind,key])=>{
+    let x,y;
+    if(kind==='cell'){ x=bx+cOff(key); y=by+rT; }
+    else { const o=fOff(key); const extraY=(key==='totQty'||key==='totWt')?rT:0; x=bx+o.dx; y=by+o.dy+extraY; }
+    const d=document.createElement('div'); d.className='ah'; d.textContent=label;
+    d.style.left=pctL(x)+'%'; d.style.top=pctT(y)+'%';
+    d.dataset.kind=kind; d.dataset.key=key;
+    d.addEventListener('mousedown',startDrag);
+    target.appendChild(d);
+  });
+}
+function refreshHandles(){
+  const sheet=$('sheet'); if(!sheet)return;
+  [...sheet.querySelectorAll('.ah')].forEach(e=>e.remove());
+  renderHandles(sheet);
+}
+function startDrag(e){
+  e.preventDefault(); e.stopPropagation();
+  const el=e.currentTarget;
+  dragState={kind:el.dataset.kind,key:el.dataset.key,x:e.clientX,y:e.clientY};
+  el.classList.add('drag');
+  document.addEventListener('mousemove',onDrag);
+  document.addEventListener('mouseup',endDrag);
+}
+function onDrag(e){
+  if(!dragState)return;
+  const sclX=(num($('sclX').value)||100)/100, sclY=(num($('sclY').value)||100)/100;
+  const kx=(previewScale*sclX)||1, ky=(previewScale*sclY)||1;
+  const dx=(e.clientX-dragState.x)/kx, dy=(e.clientY-dragState.y)/ky;
+  dragState.x=e.clientX; dragState.y=e.clientY;
+  if(dragState.kind==='cell'){
+    const c=layout.cols[dragState.key]||(layout.cols[dragState.key]={dx:0});
+    c.dx=(c.dx||0)+dx; layout.rowTop=(layout.rowTop||0)+dy;
+  } else {
+    const o=layout.fields[dragState.key]||(layout.fields[dragState.key]={dx:0,dy:0});
+    o.dx+=dx; o.dy+=dy;
+  }
+  refreshHandles();
+}
+function endDrag(){ dragState=null; document.removeEventListener('mousemove',onDrag); document.removeEventListener('mouseup',endDrag); saveLayout(); }
+function toggleAdjust(){
+  adjustMode=!adjustMode;
+  const b=$('adjustBtn'); if(b){ b.textContent=adjustMode?'Done':'Adjust layout'; b.classList.toggle('active',adjustMode); }
+  $('resetLayoutBtn').style.display=adjustMode?'inline-block':'none';
+  render();
+  if(adjustMode) flash('Drag the labels to line up with your form, then click Done');
+}
+function resetLayout(){ if(!confirm('Reset all field alignment to default?'))return; layout={fields:{},cols:{},rowTop:0}; saveLayout(); render(); flash('Layout alignment reset'); }
 let COL_PX_current=null;
 
 /* ---------- Render ---------- */
@@ -382,7 +473,8 @@ function render(){
 function fitPreview(){
   const box=$('sheetScale').parentElement;
   const avail=box.clientWidth-28;
-  const s=Math.min(1,avail/SHEET_W);
+  const s=Math.max(0.1,Math.min(1,avail/SHEET_W));
+  previewScale=s;
   $('sheetScale').style.transform='scale('+s+')';
   $('sheetScale').style.height=(SHEET_H*s)+'px';
 }
