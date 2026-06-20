@@ -8,7 +8,13 @@
 :root{
   --green:#1b5e20; --green2:#2e7d32; --line:#d4d9d4; --bg:#f4f6f3;
   --ink:#1c241c; --muted:#6a766a; --accent:#0b6b3a; --red:#c0271a;
+  --card:#ffffff; --field:#ffffff; --field-bd:var(--field-bd); --tint:var(--tint); --tint-h:var(--tint-h); --th-bd:var(--th-bd);
 }
+/* ---- Built-in themes (applied via body[data-theme]) ---- */
+body[data-theme="ocean"]{ --green:#0d47a1; --green2:#1565c0; --accent:#1565c0; --red:#c0271a; --bg:#eef3f8; --ink:#10243a; --muted:#5a6b80; --line:#cdd9e6; --card:#ffffff; --field:#ffffff; --field-bd:#c2cedd; --tint:#e6eef8; --tint-h:#d6e2f2; --th-bd:#cfdcec; }
+body[data-theme="slate"]{ --green:#37474f; --green2:#455a64; --accent:#546e7a; --red:#c0271a; --bg:#eef1f3; --ink:#1f272b; --muted:#697077; --line:#d3d9dd; --card:#ffffff; --field:#ffffff; --field-bd:#c8d0d5; --tint:#eceff1; --tint-h:#dfe4e7; --th-bd:#d7dde1; }
+body[data-theme="maroon"]{ --green:#7b1e3a; --green2:#9c2750; --accent:#9c2750; --red:#b3261e; --bg:#f7f0f2; --ink:#2a1820; --muted:#7a6670; --line:#e3d3d9; --card:#ffffff; --field:#ffffff; --field-bd:#dcc6cf; --tint:#f4e7ec; --tint-h:#ecd8df; --th-bd:#e7d2da; }
+body[data-theme="dark"]{ --green:#1f6f43; --green2:#2e9e5b; --accent:#3fb27a; --red:#ff6b5e; --bg:#11161a; --ink:#e6edf2; --muted:#9fb0bd; --line:#2c3942; --card:#1b232a; --field:#222c34; --field-bd:#3a4750; --tint:#243039; --tint-h:#2e3c46; --th-bd:#33424c; }
 *{box-sizing:border-box}
 body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;background:var(--bg);color:var(--ink);font-size:14px}
 header.app{background:linear-gradient(135deg,var(--green),var(--green2));color:#fff;padding:14px 20px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px}
@@ -18,16 +24,16 @@ header.app .sub{font-size:12px;opacity:.85;margin-top:2px}
 .col-main{flex:1 1 640px;min-width:0}
 .col-side{flex:0 0 320px;position:sticky;top:16px}
 @media(max-width:1050px){.wrap{flex-direction:column}.col-side{position:static;flex-basis:auto;width:100%}}
-.card{background:#fff;border:1px solid var(--line);border-radius:10px;padding:16px;margin-bottom:16px;box-shadow:0 1px 2px rgba(0,0,0,.04)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px;margin-bottom:16px;box-shadow:0 1px 2px rgba(0,0,0,.04)}
 .card h2{font-size:13px;text-transform:uppercase;letter-spacing:.6px;color:var(--green2);margin:0 0 12px}
 label{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:var(--muted);margin-bottom:4px}
-input,select,textarea{width:100%;padding:7px 9px;border:1px solid #cdd4cd;border-radius:6px;font-size:13px;font-family:inherit;background:#fff}
+input,select,textarea{width:100%;padding:7px 9px;border:1px solid var(--field-bd);border-radius:6px;font-size:13px;font-family:inherit;background:var(--field);color:var(--ink)}
 input:focus,textarea:focus,select:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 2px rgba(11,107,58,.12)}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
 .field{margin-bottom:10px}
 table.items{width:100%;border-collapse:collapse;font-size:12px}
-table.items th{background:#eef3ee;color:var(--green2);font-size:10px;text-transform:uppercase;letter-spacing:.3px;padding:6px 4px;border:1px solid #dbe3db;text-align:center}
+table.items th{background:var(--tint);color:var(--green2);font-size:10px;text-transform:uppercase;letter-spacing:.3px;padding:6px 4px;border:1px solid var(--th-bd);text-align:center}
 table.items td{border:1px solid #e3e8e3;padding:0}
 table.items td input{border:none;border-radius:0;padding:6px 5px;font-size:12px}
 table.items td input:focus{box-shadow:inset 0 0 0 2px rgba(11,107,58,.18)}
@@ -41,8 +47,8 @@ td.rm{width:28px;text-align:center;border:none}
 .totals b{color:var(--green2)}
 button.btn{border:none;border-radius:7px;padding:9px 14px;font-size:13px;font-weight:600;cursor:pointer;background:var(--green2);color:#fff}
 button.btn:hover{background:var(--green)}
-button.ghost{background:#eef3ee;color:var(--green2)}
-button.ghost:hover{background:#e0eae0}
+button.ghost{background:var(--tint);color:var(--green2)}
+button.ghost:hover{background:var(--tint-h)}
 button.warn{background:#fbe9e7;color:var(--red)}
 button.warn:hover{background:#f6d5d0}
 .btnrow{display:flex;gap:8px;flex-wrap:wrap}
@@ -69,12 +75,12 @@ button.btn{transition:background .12s,transform .05s;box-shadow:0 1px 2px rgba(0
 .cal-row label{margin:0}
 .cal-row input{width:74px;text-align:right;padding:5px 6px}
 .nudge{display:flex;gap:4px}
-.nudge button{width:26px;height:26px;border:1px solid #cdd4cd;background:#fff;border-radius:5px;cursor:pointer;font-size:12px}
-.nudge button:hover{background:#eef3ee}
+.nudge button{width:26px;height:26px;border:1px solid var(--field-bd);background:var(--field);border-radius:5px;cursor:pointer;font-size:12px}
+.nudge button:hover{background:var(--tint)}
 .hint{font-size:11px;color:var(--muted);line-height:1.5;margin-top:6px}
 .toggle{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--ink);margin-bottom:8px;text-transform:none;letter-spacing:0}
 .toggle input{width:auto}
-.badge{display:inline-block;background:#eef3ee;color:var(--green2);border-radius:20px;padding:2px 9px;font-size:11px;font-weight:600}
+.badge{display:inline-block;background:var(--tint);color:var(--green2);border-radius:20px;padding:2px 9px;font-size:11px;font-weight:600}
 .empty{color:var(--muted);font-size:12px;padding:10px;text-align:center}
 
 /* ===== Preview / Print sheet ===== */
@@ -94,14 +100,14 @@ button.btn{transition:background .12s,transform .05s;box-shadow:0 1px 2px rgba(0
 .signrow.done{background:#eef6ef;border-color:#bcd9c2}
 .signrow.current{border-color:var(--accent);box-shadow:0 0 0 2px rgba(11,107,58,.12)}
 .sign-btn{border:none;border-radius:6px;padding:7px 12px;font-size:12px;font-weight:600;cursor:pointer;background:var(--green2);color:#fff;white-space:nowrap}
-.sign-btn:disabled{background:#cdd4cd;cursor:not-allowed}
+.sign-btn:disabled{background:var(--field-bd);cursor:not-allowed}
 .sign-check{color:var(--green2);font-weight:700;font-size:13px}
 .badge.draft{background:#eceff1;color:#555}
 .badge.checked{background:#e3f2fd;color:#1565c0}
 .badge.verified{background:#fff3e0;color:#e65100}
 .badge.approved{background:#e8f5e9;color:#1b5e20}
 .modal-overlay{position:fixed;inset:0;background:rgba(20,30,20,.55);display:flex;align-items:flex-start;justify-content:center;z-index:1200;padding:30px 16px;overflow:auto}
-.modal{background:#fff;border-radius:12px;width:100%;max-width:760px;box-shadow:0 18px 50px rgba(0,0,0,.35)}
+.modal{background:var(--card);border-radius:12px;width:100%;max-width:760px;box-shadow:0 18px 50px rgba(0,0,0,.35)}
 .modal-head{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--line)}
 .modal-head h2{margin:0;font-size:16px;color:var(--green);text-transform:none;letter-spacing:0}
 .modal-x{border:none;background:none;font-size:24px;line-height:1;cursor:pointer;color:var(--muted)}
@@ -110,23 +116,23 @@ button.btn{transition:background .12s,transform .05s;box-shadow:0 1px 2px rgba(0
 .modal-body h3{font-size:12px;text-transform:uppercase;letter-spacing:.5px;color:var(--green2);margin:0 0 10px}
 .admin-add{background:#f4f6f3;border:1px solid var(--line);border-radius:10px;padding:14px}
 .admin-add-grid{display:grid;grid-template-columns:1.4fr 1.4fr 1.2fr 1.2fr auto;gap:8px}
-.admin-add-grid input,.admin-add-grid select{padding:8px 9px;border:1px solid #cdd4cd;border-radius:6px;font-size:13px}
+.admin-add-grid input,.admin-add-grid select{padding:8px 9px;border:1px solid var(--field-bd);border-radius:6px;font-size:13px}
 .item-add-grid{display:grid;grid-template-columns:1fr 1fr 1.7fr 1fr .9fr auto;gap:8px}
-.item-add-grid input,.item-add-grid select{padding:8px 9px;border:1px solid #cdd4cd;border-radius:6px;font-size:13px}
+.item-add-grid input,.item-add-grid select{padding:8px 9px;border:1px solid var(--field-bd);border-radius:6px;font-size:13px}
 @media(max-width:680px){.item-add-grid{grid-template-columns:1fr 1fr}}
 @media(max-width:680px){.admin-add-grid{grid-template-columns:1fr 1fr}}
 table.admin-tbl{width:100%;border-collapse:collapse;font-size:13px}
 table.admin-tbl th{text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.4px;color:var(--muted);padding:7px 8px;border-bottom:2px solid #e3e8e3}
 table.admin-tbl td{padding:7px 8px;border-bottom:1px solid #eef1ee;vertical-align:middle}
-table.admin-tbl select{padding:5px 7px;border:1px solid #cdd4cd;border-radius:6px;font-size:12px}
+table.admin-tbl select{padding:5px 7px;border:1px solid var(--field-bd);border-radius:6px;font-size:12px}
 .usr-email{font-weight:600}
 .usr-sub{font-size:11px;color:var(--muted)}
-.mini{border:1px solid #cdd4cd;background:#fff;border-radius:6px;padding:4px 8px;font-size:11px;cursor:pointer;white-space:nowrap}
-.mini:hover{background:#eef3ee}
+.mini{border:1px solid var(--field-bd);background:var(--field);border-radius:6px;padding:4px 8px;font-size:11px;cursor:pointer;white-space:nowrap}
+.mini:hover{background:var(--tint)}
 .mini.warn{color:var(--red);border-color:#f1c5bf}
 .tag-active{color:var(--green2);font-size:11px;font-weight:600}
 .tag-off{color:var(--red);font-size:11px;font-weight:600}
-.tag-you{font-size:10px;background:#eef3ee;color:var(--green2);border-radius:10px;padding:1px 6px;margin-left:4px}
+.tag-you{font-size:10px;background:var(--tint);color:var(--green2);border-radius:10px;padding:1px 6px;margin-left:4px}
 
 @media print{
   @page{ size:var(--pw) var(--ph); margin:0 }
@@ -140,7 +146,7 @@ table.admin-tbl select{padding:5px 7px;border:1px solid #cdd4cd;border-radius:6p
 
 /* ===== Auth ===== */
 #authGate{position:fixed;inset:0;background:linear-gradient(135deg,#1b5e20,#2e7d32);display:flex;align-items:center;justify-content:center;z-index:1000;padding:20px}
-.auth-card{background:#fff;border-radius:14px;padding:30px 28px;width:100%;max-width:380px;box-shadow:0 12px 40px rgba(0,0,0,.3)}
+.auth-card{background:var(--card);border-radius:14px;padding:30px 28px;width:100%;max-width:380px;box-shadow:0 12px 40px rgba(0,0,0,.3)}
 .auth-card h2{margin:0 0 4px;font-size:18px;color:var(--green);text-transform:none;letter-spacing:0}
 .auth-card .co{font-size:12px;color:var(--muted);margin-bottom:20px}
 .auth-card label{margin-top:12px}
@@ -172,10 +178,10 @@ table.admin-tbl select{padding:5px 7px;border:1px solid #cdd4cd;border-radius:6p
 <header class="app app-hidden" id="appHeader">
   <div>
     <h1>Pacific Agrisolutions Enterprises Inc. — Warehouse Receiving Report</h1>
-    <div class="sub">Pre-printed form data entry &amp; overlay print system &middot; <span id="buildTag">build 2026-06-20#16</span></div>
+    <div class="sub">Pre-printed form data entry &amp; overlay print system &middot; <span id="buildTag">build 2026-06-20#17</span></div>
   </div>
   <div class="btnrow">
-    <span class="userbar"><span class="em" id="userEmail"></span><button class="logout" onclick="doLogout()"><svg viewBox="0 0 24 24" fill="none"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>Sign out</button></span>
+    <span class="userbar"><span class="em" id="userEmail"></span><button class="logout" onclick="doLogout()"><svg viewBox="0 0 24 24" fill="none"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>Sign out</button><select id="themeSel" class="logout" title="Color theme" onchange="setTheme(this.value)" style="padding:6px 8px;cursor:pointer"><option value="green">🎨 Green</option><option value="ocean">🎨 Ocean</option><option value="slate">🎨 Slate</option><option value="maroon">🎨 Maroon</option><option value="dark">🎨 Dark</option></select></span>
     <button class="btn ghost icon app-hidden" id="adminBtn" onclick="openAdmin()"><svg viewBox="0 0 24 24" fill="none"><path d="M12 2l7 4v6c0 4.5-3 7.5-7 10-4-2.5-7-5.5-7-10V6l7-4z"/><circle cx="12" cy="10" r="2.2"/><path d="M8.5 16.2c.7-1.6 2-2.4 3.5-2.4s2.8.8 3.5 2.4"/></svg>Admin</button>
     <button class="btn ghost icon app-hidden" id="itemsBtn" onclick="openItems()"><svg viewBox="0 0 24 24" fill="none"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.3 7 12 12 20.7 7"/><line x1="12" y1="22" x2="12" y2="12"/></svg>Items</button>
     <button class="btn ghost icon" id="recordsBtn" onclick="openRecords()"><svg viewBox="0 0 24 24" fill="none"><path d="M3 7V5a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v2"/><path d="M3 7h18a1 1 0 0 1 1 1.16l-1.5 9A2 2 0 0 1 18.5 19H5.5a2 2 0 0 1-2-1.84L2 8.16A1 1 0 0 1 3 7z"/></svg><span id="recBtnLbl">Saved Reports</span></button>
@@ -289,7 +295,7 @@ table.admin-tbl select{padding:5px 7px;border:1px solid #cdd4cd;border-radius:6p
         <input type="number" id="fontPt" value="8.5" step="0.25" oninput="render()"><span></span>
       </div>
       <div class="cal-row"><label>Font</label>
-        <select id="fontFamily" onchange="render()" style="width:140px;text-align:left;padding:5px 6px;border:1px solid #cdd4cd;border-radius:6px;font-size:12px">
+        <select id="fontFamily" onchange="render()" style="width:140px;text-align:left;padding:5px 6px;border:1px solid var(--field-bd);border-radius:6px;font-size:12px">
           <option value='"Courier New", monospace'>Courier (mono)</option>
           <option value='Consolas, "Courier New", monospace'>Consolas (mono)</option>
           <option value='Arial, sans-serif'>Arial</option>
@@ -340,7 +346,7 @@ table.admin-tbl select{padding:5px 7px;border:1px solid #cdd4cd;border-radius:6p
       </div>
       <div style="display:flex;align-items:center;justify-content:space-between;margin:16px 0 8px">
         <h3 style="margin:0">Items (<span id="itCount">0</span>)</h3>
-        <input id="itSearch" placeholder="Search code, group, description, brand…" oninput="renderItemsList()" style="padding:6px 9px;border:1px solid #cdd4cd;border-radius:6px;font-size:13px;width:260px">
+        <input id="itSearch" placeholder="Search code, group, description, brand…" oninput="renderItemsList()" style="padding:6px 9px;border:1px solid var(--field-bd);border-radius:6px;font-size:13px;width:260px">
       </div>
       <div id="itemsList"><div class="empty">Loading…</div></div>
     </div>
@@ -352,7 +358,7 @@ table.admin-tbl select{padding:5px 7px;border:1px solid #cdd4cd;border-radius:6p
     <div class="modal-head"><h2>Saved Reports</h2><button class="modal-x" onclick="closeRecords()" title="Close">&times;</button></div>
     <div class="modal-body">
       <div style="display:flex;align-items:center;gap:10px;margin:0 0 12px">
-        <input id="recSearch" placeholder="Search customer, report no., status…" oninput="renderRecords()" style="flex:1;padding:7px 9px;border:1px solid #cdd4cd;border-radius:6px;font-size:13px">
+        <input id="recSearch" placeholder="Search customer, report no., status…" oninput="renderRecords()" style="flex:1;padding:7px 9px;border:1px solid var(--field-bd);border-radius:6px;font-size:13px">
         <button class="btn ghost" style="white-space:nowrap" onclick="refreshRecords()">Refresh</button>
       </div>
       <div class="records" id="recordList"><div class="empty">Loading…</div></div>
@@ -941,7 +947,7 @@ async function loadAdminUsers(){
     const isMe=u.email===me;
     return '<tr data-email="'+esc(u.email)+'">'+
       '<td><div class="usr-email">'+esc(u.email)+(isMe?'<span class="tag-you">you</span>':'')+'</div>'+
-      '<input class="namein" value="'+esc(u.name||'')+'" placeholder="Full name (for signature)" onchange="adminSaveUser(this.closest(\'tr\').dataset.email)" style="margin-top:4px;width:190px;padding:4px 6px;border:1px solid #cdd4cd;border-radius:5px;font-size:12px"></td>'+
+      '<input class="namein" value="'+esc(u.name||'')+'" placeholder="Full name (for signature)" onchange="adminSaveUser(this.closest(\'tr\').dataset.email)" style="margin-top:4px;width:190px;padding:4px 6px;border:1px solid var(--field-bd);border-radius:5px;font-size:12px"></td>'+
       '<td style="min-width:230px">'+checks+'</td>'+
       '<td>'+(u.disabled?'<span class="tag-off">Disabled</span>':'<span class="tag-active">Active</span>')+'</td>'+
       '<td style="text-align:right;white-space:nowrap"><button class="mini" onclick="adminResetPw(this.closest(\'tr\').dataset.email)">Reset password</button>'+
@@ -1029,6 +1035,9 @@ function openItems(){ if(!isAdmin()){ flash('Admin only',true); return; } $('ite
 function closeItems(){ $('itemsModal').style.display='none'; }
 function openRecords(){ $('recordsModal').style.display='flex'; refreshRecords(); }
 function closeRecords(){ $('recordsModal').style.display='none'; }
+const WRR_THEMES=['green','ocean','slate','maroon','dark'];
+function setTheme(t){ if(WRR_THEMES.indexOf(t)<0)t='green'; if(t==='green')document.body.removeAttribute('data-theme'); else document.body.setAttribute('data-theme',t); try{localStorage.setItem('pasei_wrr_theme',t)}catch(e){} const s=document.getElementById('themeSel'); if(s)s.value=t; }
+function loadTheme(){ let t='green'; try{t=localStorage.getItem('pasei_wrr_theme')||'green'}catch(e){} setTheme(t); }
 function renderItemsList(){
   const box=$('itemsList'); if(!box) return;
   $('itCount').textContent=itemMaster.length;
@@ -1184,6 +1193,7 @@ applyGuideBtn();
 
 /* ---------- Init ---------- */
 window.addEventListener('resize',fitPreview);
+loadTheme();
 loadSettings();
 items=[blankRow(),blankRow(),blankRow()];
 renderItemsTable();
