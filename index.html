@@ -90,6 +90,30 @@ button.warn:hover{background:#f6d5d0}
 .badge.checked{background:#e3f2fd;color:#1565c0}
 .badge.verified{background:#fff3e0;color:#e65100}
 .badge.approved{background:#e8f5e9;color:#1b5e20}
+.modal-overlay{position:fixed;inset:0;background:rgba(20,30,20,.55);display:flex;align-items:flex-start;justify-content:center;z-index:1200;padding:30px 16px;overflow:auto}
+.modal{background:#fff;border-radius:12px;width:100%;max-width:760px;box-shadow:0 18px 50px rgba(0,0,0,.35)}
+.modal-head{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--line)}
+.modal-head h2{margin:0;font-size:16px;color:var(--green);text-transform:none;letter-spacing:0}
+.modal-x{border:none;background:none;font-size:24px;line-height:1;cursor:pointer;color:var(--muted)}
+.modal-x:hover{color:var(--ink)}
+.modal-body{padding:18px 20px;max-height:75vh;overflow:auto}
+.modal-body h3{font-size:12px;text-transform:uppercase;letter-spacing:.5px;color:var(--green2);margin:0 0 10px}
+.admin-add{background:#f4f6f3;border:1px solid var(--line);border-radius:10px;padding:14px}
+.admin-add-grid{display:grid;grid-template-columns:1.4fr 1.4fr 1.2fr 1.2fr auto;gap:8px}
+.admin-add-grid input,.admin-add-grid select{padding:8px 9px;border:1px solid #cdd4cd;border-radius:6px;font-size:13px}
+@media(max-width:680px){.admin-add-grid{grid-template-columns:1fr 1fr}}
+table.admin-tbl{width:100%;border-collapse:collapse;font-size:13px}
+table.admin-tbl th{text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.4px;color:var(--muted);padding:7px 8px;border-bottom:2px solid #e3e8e3}
+table.admin-tbl td{padding:7px 8px;border-bottom:1px solid #eef1ee;vertical-align:middle}
+table.admin-tbl select{padding:5px 7px;border:1px solid #cdd4cd;border-radius:6px;font-size:12px}
+.usr-email{font-weight:600}
+.usr-sub{font-size:11px;color:var(--muted)}
+.mini{border:1px solid #cdd4cd;background:#fff;border-radius:6px;padding:4px 8px;font-size:11px;cursor:pointer;white-space:nowrap}
+.mini:hover{background:#eef3ee}
+.mini.warn{color:var(--red);border-color:#f1c5bf}
+.tag-active{color:var(--green2);font-size:11px;font-weight:600}
+.tag-off{color:var(--red);font-size:11px;font-weight:600}
+.tag-you{font-size:10px;background:#eef3ee;color:var(--green2);border-radius:10px;padding:1px 6px;margin-left:4px}
 
 @media print{
   @page{ size:var(--pw) var(--ph); margin:0 }
@@ -139,6 +163,7 @@ button.warn:hover{background:#f6d5d0}
   </div>
   <div class="btnrow">
     <span class="userbar"><span class="em" id="userEmail"></span><button class="logout" onclick="doLogout()">Sign out</button></span>
+    <button class="btn ghost app-hidden" id="adminBtn" onclick="openAdmin()">Admin</button>
     <button class="btn ghost" onclick="newRecord()">+ New</button>
     <button class="btn" onclick="saveRecord()">Save</button>
     <button class="btn" onclick="window.print()">Print onto form</button>
@@ -255,6 +280,37 @@ button.warn:hover{background:#f6d5d0}
     <div class="card">
       <h2>Saved Reports</h2>
       <div class="records" id="recordList"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Admin / RBAC modal -->
+<div id="adminModal" class="modal-overlay" style="display:none">
+  <div class="modal">
+    <div class="modal-head">
+      <h2>User Access &amp; Roles</h2>
+      <button class="modal-x" onclick="closeAdmin()" title="Close">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="admin-add">
+        <h3>Add a user</h3>
+        <div class="admin-add-grid">
+          <input id="newUserEmail" type="email" placeholder="email@meatplus.ph">
+          <input id="newUserName" type="text" placeholder="Full name (for signature)">
+          <input id="newUserPass" type="text" placeholder="Temporary password">
+          <select id="newUserRole">
+            <option value="checker">Warehouse Checker</option>
+            <option value="analyst">Inventory Analyst</option>
+            <option value="supervisor">Warehouse Supervisor</option>
+            <option value="admin">Admin</option>
+            <option value="none">No role yet</option>
+          </select>
+          <button class="btn" onclick="adminCreateUser()">Create user</button>
+        </div>
+        <div class="hint" style="margin-top:6px">Creates a login with the temporary password (tell them to change it). Email becomes lowercase.</div>
+      </div>
+      <h3 style="margin:18px 0 8px">Users</h3>
+      <div id="adminUsers"><div class="empty">Loading…</div></div>
     </div>
   </div>
 </div>
@@ -569,6 +625,7 @@ async function onSignedIn(){
   currentRole=roleRow?roleRow.role:null;
   currentName=roleRow?(roleRow.name||data.user.email):null;
   $('userEmail').textContent=data.user.email+(currentRole?(' · '+roleTitle(currentRole)):' · no role');
+  if($('adminBtn')) $('adminBtn').classList.toggle('app-hidden', currentRole!=='admin');
   $('authGate').style.display='none';
   $('appHeader').classList.remove('app-hidden');
   $('appWrap').classList.remove('app-hidden');
@@ -718,6 +775,61 @@ function applyLock(){
   document.querySelectorAll('#itemBody .rmbtn').forEach(b=>{ b.style.display=locked?'none':''; });
   const addBtn=document.querySelector('button[onclick="addRow()"]'); if(addBtn) addBtn.disabled=locked;
   const saveBtn=document.querySelector('header.app button[onclick="saveRecord()"]'); if(saveBtn){ saveBtn.disabled=locked; saveBtn.style.opacity=locked?'.5':'1'; }
+}
+
+
+/* ---------- Admin / RBAC ---------- */
+const ROLE_OPTS=[['checker','Warehouse Checker'],['analyst','Inventory Analyst'],['supervisor','Warehouse Supervisor'],['admin','Admin'],['none','No role']];
+function cssesc(s){ return String(s).replace(/["\\]/g,'\\$&'); }
+function openAdmin(){ if(currentRole!=='admin'){ flash('Admin only',true); return; } $('adminModal').style.display='flex'; loadAdminUsers(); }
+function closeAdmin(){ $('adminModal').style.display='none'; }
+async function loadAdminUsers(){
+  const box=$('adminUsers'); box.innerHTML='<div class="empty">Loading…</div>';
+  const {data,error}=await sb.rpc('wrr_admin_list_users');
+  if(error){ box.innerHTML='<div class="empty">'+esc(error.message)+'</div>'; return; }
+  const me=currentUser?currentUser.email:'';
+  const rows=(data||[]).map(u=>{
+    const cur=u.role||'none';
+    const opts=ROLE_OPTS.map(([v,l])=>'<option value="'+v+'"'+(cur===v?' selected':'')+'>'+l+'</option>').join('');
+    const isMe=u.email===me;
+    return '<tr data-email="'+esc(u.email)+'">'+
+      '<td><div class="usr-email">'+esc(u.email)+(isMe?'<span class="tag-you">you</span>':'')+'</div><div class="usr-sub">'+esc(u.name||'')+'</div></td>'+
+      '<td><select onchange="adminSetRole(this.closest(\'tr\').dataset.email,this.value)">'+opts+'</select></td>'+
+      '<td>'+(u.disabled?'<span class="tag-off">Disabled</span>':'<span class="tag-active">Active</span>')+'</td>'+
+      '<td style="text-align:right;white-space:nowrap"><button class="mini" onclick="adminResetPw(this.closest(\'tr\').dataset.email)">Reset password</button>'+
+      (isMe?'':'<button class="mini warn" onclick="adminToggleDisabled(this.closest(\'tr\').dataset.email,'+(u.disabled?'false':'true')+')">'+(u.disabled?'Enable':'Disable')+'</button>')+
+      '</td></tr>';
+  }).join('');
+  box.innerHTML='<table class="admin-tbl"><thead><tr><th>User</th><th>Role</th><th>Status</th><th></th></tr></thead><tbody>'+rows+'</tbody></table>';
+}
+async function adminSetRole(email,role){
+  const tr=document.querySelector('#adminUsers tr[data-email="'+cssesc(email)+'"]');
+  const name=tr?tr.querySelector('.usr-sub').textContent:'';
+  const {error}=await sb.rpc('wrr_admin_set_role',{p_email:email,p_name:name,p_role:role});
+  if(error){ flash(error.message,true); } else { flash('Role updated'); }
+  loadAdminUsers();
+}
+async function adminCreateUser(){
+  const email=$('newUserEmail').value.trim(), name=$('newUserName').value.trim(), pass=$('newUserPass').value, role=$('newUserRole').value;
+  if(!email||!pass){ flash('Email and temporary password are required',true); return; }
+  const {error}=await sb.rpc('wrr_admin_create_user',{p_email:email,p_password:pass,p_name:name,p_role:role});
+  if(error){ flash(error.message,true); return; }
+  flash('User created'); $('newUserEmail').value='';$('newUserName').value='';$('newUserPass').value='';
+  loadAdminUsers();
+}
+async function adminResetPw(email){
+  const pw=prompt('New temporary password for '+email+' (min 6 characters):');
+  if(pw===null) return;
+  if(pw.length<6){ flash('Password must be at least 6 characters',true); return; }
+  const {error}=await sb.rpc('wrr_admin_reset_password',{p_email:email,p_password:pw});
+  if(error){ flash(error.message,true); return; }
+  flash('Password reset for '+email);
+}
+async function adminToggleDisabled(email,disable){
+  if(!confirm((disable?'Disable':'Enable')+' login for '+email+'?')) return;
+  const {error}=await sb.rpc('wrr_admin_set_disabled',{p_email:email,p_disabled:disable});
+  if(error){ flash(error.message,true); return; }
+  flash(disable?'User disabled':'User enabled'); loadAdminUsers();
 }
 
 /* ---------- Settings persistence ---------- */
