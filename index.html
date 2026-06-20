@@ -476,6 +476,10 @@ function computeTotals(){
 }
 function fmt(n){return Number.isInteger(n)?String(n):n.toFixed(2);}
 function fontFam(){ return ($("fontFamily")&&$("fontFamily").value)||'"Courier New", monospace'; }
+let _mctx;
+function _measureW(t,fpx,fam){ try{ if(_mctx===undefined)_mctx=document.createElement("canvas").getContext("2d"); if(_mctx){ _mctx.font=fpx.toFixed(2)+"px "+fam; return _mctx.measureText(t).width; } }catch(e){} return String(t).length*fpx*0.58; }
+function _countLines(t,fpx,w,fam){ const ws=String(t).split(/\s+/).filter(Boolean); if(!ws.length)return 1; let n=1,cur=""; for(const x of ws){ const tt=cur?cur+" "+x:x; if(!cur||_measureW(tt,fpx,fam)<=w){ cur=tt; } else { n++; cur=x; } } return n; }
+function fitDesc(t,baseFpx,w,fam,maxLines){ let f=baseFpx; for(let i=0;i<16 && _countLines(t,f,w,fam)>maxLines;i++){ f*=0.93; if(f<baseFpx*0.5){ f=baseFpx*0.5; break; } } return {font:f, lines:_countLines(t,f,w,fam)}; }
 
 /* ---------- Shared field painter (place: leftPx,topPx,text,align,widthPx,bold) ---------- */
 function paintFields(place,fontSheetPx){
@@ -492,7 +496,12 @@ function paintFields(place,fontSheetPx){
       let v=r[k]; if(v==='' || v==null)continue;
       if(k==='prodDate'||k==='expDate') v=fmtDate(v);
       const [lpx,rpx]=COL_PX[k];
-      if(k==='desc'){ place(lpx+cOff(k), ROW_TOP+i*ROW_H+1.5+rT, v, 'left', rpx-lpx, false, true); }
+      if(k==='desc'){
+        const fam=fontFam(), wSheet=(rpx-lpx)-3;
+        const fit=fitDesc(v, fontSheetPx, wSheet, fam, 2), ratio=fit.font/fontSheetPx;
+        const blockH=fit.lines*fit.font*1.04, topDesc=ROW_TOP+i*ROW_H+rT+Math.max(0,(ROW_H-blockH)/2);
+        place(lpx+cOff(k), topDesc, v, 'left', rpx-lpx, false, true, ratio);
+      }
       else { place(lpx+cOff(k),yTop,v,ALIGN[k],rpx-lpx); }
     }
   });
@@ -527,12 +536,12 @@ function buildOverlay(target){
   const fontPt=num($('fontPt').value)||8.5;
   const fontPx=fontPt*(SHEET_W/(pageWin*72));
   const FF=fontFam(); const FB=$("fontBold")&&$("fontBold").checked; const FI=$("fontItalic")&&$("fontItalic").checked;
-  const place=(leftPx,topPx,text,align,widthPx,bold,wrap)=>{
+  const place=(leftPx,topPx,text,align,widthPx,bold,wrap,fontScale)=>{
     if(text==='' || text==null)return;
     const d=document.createElement('div');d.className='ov';d.textContent=text;
     d.style.fontFamily=FF;
     d.style.top=pctT(topPx)+'%';d.style.left=pctL(leftPx)+'%';
-    d.style.fontSize=fontPx.toFixed(2)+'px';d.style.textAlign=align||'left';
+    d.style.fontSize=(fontPx*(fontScale||1)).toFixed(2)+'px';d.style.textAlign=align||'left';
     if(widthPx)d.style.width=pctL(widthPx)+'%';
     if(align==='left')d.style.paddingLeft=PAD+'px';
     if(align==='right')d.style.paddingRight=PAD+'px';
@@ -683,13 +692,13 @@ function buildOverlayInto(box,pageWin){
   const fontPx=fontPt/72*96;                       // pt -> px at 96dpi for actual glyph size
   const fontSheetPx=fontPt*(SHEET_W/(pageWin*72)); // pt in 641px sheet space for vertical centering math
   const FF=fontFam(); const FB=$("fontBold")&&$("fontBold").checked; const FI=$("fontItalic")&&$("fontItalic").checked;
-  const place=(leftPx,topPx,text,align,widthPx,bold,wrap)=>{
+  const place=(leftPx,topPx,text,align,widthPx,bold,wrap,fontScale)=>{
     if(text==='' || text==null)return;
     const d=document.createElement('div');d.className='ov';d.textContent=text;
     d.style.position='absolute';d.style.fontFamily=FF;d.style.color='#000';
     d.style.whiteSpace=wrap?'normal':'nowrap';d.style.lineHeight=wrap?'1.02':'1';
     d.style.top=pctT(topPx)+'%';d.style.left=pctL(leftPx)+'%';
-    d.style.fontSize=fontPx.toFixed(2)+'px';d.style.textAlign=align||'left';
+    d.style.fontSize=(fontPx*(fontScale||1)).toFixed(2)+'px';d.style.textAlign=align||'left';
     if(widthPx)d.style.width=pctL(widthPx)+'%';
     if(align==='left')d.style.paddingLeft=PAD+'px';
     if(align==='right')d.style.paddingRight=PAD+'px';
