@@ -58,6 +58,15 @@ button.btn:active,.logout:active{transform:translateY(1px)}
 button.btn{transition:background .12s,transform .05s;box-shadow:0 1px 2px rgba(0,0,0,.12)}
 .btn.icon{display:inline-flex;align-items:center;gap:7px}
 .btn.icon svg{width:16px;height:16px;flex:none;stroke:currentColor}
+.doctype-switch{display:inline-flex;margin-top:9px;background:rgba(255,255,255,.16);border-radius:9px;padding:3px;gap:3px}
+.doctype-switch .dt{border:none;background:transparent;color:#fff;opacity:.85;font-size:12px;font-weight:600;padding:6px 14px;border-radius:7px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;font-family:inherit}
+.doctype-switch .dt.active{background:#fff;color:var(--green2);opacity:1;box-shadow:0 1px 3px rgba(0,0,0,.2)}
+.stock-row{display:grid;grid-template-columns:1fr auto auto;gap:12px;align-items:center;padding:9px 6px;border-bottom:1px solid var(--line)}
+.stock-row .sc{font-weight:600;color:var(--ink)}
+.stock-row .sd{font-size:11px;color:var(--muted)}
+.stock-num{font-variant-numeric:tabular-nums;font-weight:600;text-align:right;min-width:74px}
+.stock-neg{color:var(--red)}
+.stock-head{font-size:10px;text-transform:uppercase;letter-spacing:.4px;color:var(--muted);font-weight:700}
 #saveBtn{background:linear-gradient(135deg,#16a05f,#0b6b3a);box-shadow:0 2px 7px rgba(11,107,58,.4);padding:9px 20px;font-weight:700;letter-spacing:.2px}
 #saveBtn:hover{background:linear-gradient(135deg,#12894f,#085c31)}
 #saveBtn:active{transform:translateY(1px);box-shadow:0 1px 3px rgba(11,107,58,.4)}
@@ -177,14 +186,19 @@ table.admin-tbl select{padding:5px 7px;border:1px solid var(--field-bd);border-r
 </div>
 <header class="app app-hidden" id="appHeader">
   <div>
-    <h1>Pacific Agrisolutions Enterprises Inc. — Warehouse Receiving Report</h1>
-    <div class="sub">Pre-printed form data entry &amp; overlay print system &middot; <span id="buildTag">build 2026-06-20#22</span></div>
+    <h1 id="docTitle">Pacific Agrisolutions Enterprises Inc. — Warehouse Receiving Report</h1>
+    <div class="sub">Pre-printed form data entry &amp; overlay print system &middot; <span id="buildTag">build 2026-06-20#23</span></div>
+    <div class="doctype-switch">
+      <button type="button" id="dtReceiving" class="dt active" onclick="setDocType('receiving')"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Receiving (Stock In)</button>
+      <button type="button" id="dtIssuance" class="dt" onclick="setDocType('issuance')"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>Issuance (Stock Out)</button>
+    </div>
   </div>
   <div class="btnrow">
     <span class="userbar"><span class="em" id="userEmail"></span><button class="logout" onclick="doLogout()"><svg viewBox="0 0 24 24" fill="none"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>Sign out</button><select id="themeSel" class="logout" title="Color theme" onchange="setTheme(this.value)" style="padding:6px 8px;cursor:pointer"><option value="green">🎨 Green</option><option value="ocean">🎨 Ocean</option><option value="slate">🎨 Slate</option><option value="maroon">🎨 Maroon</option><option value="dark">🎨 Dark</option></select></span>
     <button class="btn ghost icon app-hidden" id="adminBtn" onclick="openAdmin()"><svg viewBox="0 0 24 24" fill="none"><path d="M12 2l7 4v6c0 4.5-3 7.5-7 10-4-2.5-7-5.5-7-10V6l7-4z"/><circle cx="12" cy="10" r="2.2"/><path d="M8.5 16.2c.7-1.6 2-2.4 3.5-2.4s2.8.8 3.5 2.4"/></svg>Admin</button>
     <button class="btn ghost icon app-hidden" id="itemsBtn" onclick="openItems()"><svg viewBox="0 0 24 24" fill="none"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.3 7 12 12 20.7 7"/><line x1="12" y1="22" x2="12" y2="12"/></svg>Items</button>
     <button class="btn ghost icon" id="recordsBtn" onclick="openRecords()"><svg viewBox="0 0 24 24" fill="none"><path d="M3 7V5a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v2"/><path d="M3 7h18a1 1 0 0 1 1 1.16l-1.5 9A2 2 0 0 1 18.5 19H5.5a2 2 0 0 1-2-1.84L2 8.16A1 1 0 0 1 3 7z"/></svg><span id="recBtnLbl">Saved Reports</span></button>
+    <button class="btn ghost icon" id="stockBtn" onclick="openStock()"><svg viewBox="0 0 24 24" fill="none"><path d="M3 9l9-5 9 5v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M3 9h18"/><path d="M9 21v-8h6v8"/></svg>Stock</button>
     <button class="btn ghost icon" onclick="newRecord()"><svg viewBox="0 0 24 24" fill="none"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="14 3 14 9 20 9"/><line x1="12" y1="12.5" x2="12" y2="17.5"/><line x1="9.5" y1="15" x2="14.5" y2="15"/></svg>New</button>
     <button class="btn ghost icon" id="previewBtn" onclick="openPreview()"><svg viewBox="0 0 24 24" fill="none"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>Preview</button>
     <button class="btn icon" id="saveBtn" onclick="saveRecord()"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>Save</button>
@@ -196,14 +210,14 @@ table.admin-tbl select{padding:5px 7px;border:1px solid var(--field-bd);border-r
   <div class="col-main">
     <!-- Header fields -->
     <div class="card">
-      <h2>Receiving Report Details</h2>
+      <h2 id="detailsTitle">Receiving Report Details</h2>
       <div class="grid2">
         <div class="field"><label>Customer Name</label><input id="custName" oninput="render()"></div>
         <div class="field"><label>Date</label><input id="docDate" type="date" oninput="render()"></div>
       </div>
       <div class="grid2">
         <div class="field"><label>Address</label><input id="address" oninput="render()"></div>
-        <div class="field"><label>No. — Receiving Report No. <span style="color:var(--red)">*required</span> (saved to database, not printed)</label><input id="docNo" oninput="render()" placeholder="e.g. 0009759"></div>
+        <div class="field"><label id="docNoLabel">No. — Receiving Report No. <span style="color:var(--red)">*required</span> (saved to database, not printed)</label><input id="docNo" oninput="render()" placeholder="e.g. 0009759"></div>
       </div>
     </div>
 
@@ -284,6 +298,20 @@ table.admin-tbl select{padding:5px 7px;border:1px solid var(--field-bd);border-r
         <input id="itSearch" placeholder="Search code, group, description, brand…" oninput="renderItemsList()" style="padding:6px 9px;border:1px solid var(--field-bd);border-radius:6px;font-size:13px;width:260px">
       </div>
       <div id="itemsList"><div class="empty">Loading…</div></div>
+    </div>
+  </div>
+</div>
+
+<div id="stockModal" class="modal-overlay" style="display:none">
+  <div class="modal" style="max-width:620px">
+    <div class="modal-head"><h2>Stock on Hand</h2><button class="modal-x" onclick="closeStock()" title="Close">&times;</button></div>
+    <div class="modal-body">
+      <div style="display:flex;align-items:center;gap:10px;margin:0 0 10px">
+        <input id="stockSearch" placeholder="Search item code, description, brand…" oninput="renderStock()" style="flex:1">
+        <button class="btn ghost" style="white-space:nowrap" onclick="loadStock()">Refresh</button>
+      </div>
+      <p class="hint" style="margin-top:0">On-hand per item = approved <b>Receiving</b> minus approved <b>Issuance</b>. Negatives shown in red. Only fully-approved documents count.</p>
+      <div id="stockList"><div class="empty">Loading…</div></div>
     </div>
   </div>
 </div>
@@ -437,13 +465,13 @@ function normalizeLayout(l){ l=l||{}; const f={},c={}; if(l.fields)for(const k i
 function loadLayout(){ try{ return normalizeLayout(JSON.parse(localStorage.getItem('pasei_wrr_layout')||'{}')); }catch(e){ return {fields:{},cols:{}}; } }
 function saveLayout(){
   try{ localStorage.setItem('pasei_wrr_layout', JSON.stringify(layout)); }catch(e){}
-  if(isAdmin() && sb){ sb.from('wrr_app_settings').upsert({key:'layout',value:layout},{onConflict:'key'}).then(({error})=>{ if(error) console.warn('layout save:',error.message); }); }
+  if(isAdmin() && sb){ sb.from('wrr_app_settings').upsert({key:gkey('layout'),value:layout},{onConflict:'key'}).then(({error})=>{ if(error) console.warn('layout save:',error.message); }); }
 }
 async function loadLayoutRemote(){
   if(!sb) return;
   try{
-    const {data,error}=await sb.from('wrr_app_settings').select('value').eq('key','layout').maybeSingle();
-    if(!error && data && data.value){ layout=normalizeLayout(data.value); try{ localStorage.setItem('pasei_wrr_layout', JSON.stringify(layout)); }catch(e){} }
+    const {data,error}=await sb.from('wrr_app_settings').select('value').eq('key',gkey('layout')).maybeSingle();
+    if(!error){ layout = (data && data.value) ? normalizeLayout(data.value) : {fields:{},cols:{}}; try{ localStorage.setItem('pasei_wrr_layout', JSON.stringify(layout)); }catch(e){} }
   }catch(e){ console.warn('layout load:',e.message); }
 }
 let layout = loadLayout();
@@ -782,11 +810,13 @@ function readDoc(){
   // signed fields + status are managed only by the approval RPC, never written here
   return {
     custname:$('custName').value,address:$('address').value,docdate:$('docDate').value,docno:$('docNo').value,
+    doc_type:docType,
     items:JSON.parse(JSON.stringify(items)),
     ackname:$('ackName').value,ackdate:$('ackDate').value
   };
 }
 function loadDoc(d){
+  if(d.doc_type && d.doc_type!==docType){ docType=d.doc_type; applyDocTypeUI(); }
   currentId=d.id;
   currentStatus=d.status||'draft';
   $('custName').value=d.custname||'';$('address').value=d.address||'';$('docDate').value=toInputDate(d.docdate)||'';$('docNo').value=d.docno||'';
@@ -800,16 +830,16 @@ function loadDoc(d){
 
 /* ---------- Cloud CRUD ---------- */
 async function refreshRecords(){
-  const {data,error}=await sb.from('wrr_reports').select('*').order('updated_at',{ascending:false});
+  const {data,error}=await sb.from('wrr_reports').select('*').eq('doc_type',docType).order('updated_at',{ascending:false});
   if(error){ console.error(error); $('recordList').innerHTML='<div class="empty">Could not load: '+esc(error.message)+'</div>'; return; }
   cachedRecords=data||[];
-  const b=$('recBtnLbl'); if(b) b.textContent='Saved Reports ('+cachedRecords.length+')';
+  const b=$('recBtnLbl'); if(b) b.textContent=docLabel()+' Reports ('+cachedRecords.length+')';
   renderRecords();
 }
 async function saveRecord(){
   if(!sb)return;
   if(currentStatus==='approved'){ flash('This report is fully approved and locked',true); return; }
-  if(!($('docNo').value||'').trim()){ flash('Receiving Report Number is required before saving',true); try{$('docNo').focus();}catch(e){} return; }
+  if(!($('docNo').value||'').trim()){ flash(docLabel()+' Report Number is required before saving',true); try{$('docNo').focus();}catch(e){} return; }
   const d=readDoc();
   let res;
   if(currentId){ res=await sb.from('wrr_reports').update(d).eq('id',currentId).select().single(); }
@@ -1039,6 +1069,63 @@ function openRecords(){ $('recordsModal').style.display='flex'; refreshRecords()
 function closeRecords(){ $('recordsModal').style.display='none'; }
 function openPreview(){ $('previewModal').style.display='flex'; render(); setTimeout(fitPreview,30); setTimeout(fitPreview,150); }
 function closePreview(){ if(adjustMode){ toggleAdjust(); } $('previewModal').style.display='none'; }
+
+/* ---------- Document type: Receiving (stock IN) / Issuance (stock OUT) ---------- */
+let docType='receiving';
+function gkey(base){ return docType==='issuance' ? base+'_issuance' : base; }
+function docLabel(){ return docType==='issuance' ? 'Issuance' : 'Receiving'; }
+function applyDocTypeUI(){
+  const isIss=docType==='issuance';
+  const r=$('dtReceiving'), i=$('dtIssuance');
+  if(r) r.classList.toggle('active',!isIss);
+  if(i) i.classList.toggle('active',isIss);
+  if($('docTitle')) $('docTitle').textContent='Pacific Agrisolutions Enterprises Inc. — Warehouse '+docLabel()+' Report';
+  if($('detailsTitle')) $('detailsTitle').textContent=docLabel()+' Report Details';
+  if($('docNoLabel')) $('docNoLabel').innerHTML='No. — '+docLabel()+' Report No. <span style="color:var(--red)">*required</span> (saved to database, not printed)';
+  const rl=$('recBtnLbl'); if(rl) rl.textContent=docLabel()+' Reports ('+(cachedRecords?cachedRecords.length:0)+')';
+}
+async function setDocType(t){
+  if(t!=='receiving'&&t!=='issuance')t='receiving';
+  if(t===docType) return;
+  if(adjustMode){ toggleAdjust(); }
+  docType=t;
+  applyDocTypeUI();
+  newRecord();
+  await loadLayoutRemote();
+  await loadGuideRemote();
+  if(typeof applyGuideBtn==='function') applyGuideBtn();
+  render();
+  await refreshRecords();
+}
+
+/* ---------- Stock / Inventory module ---------- */
+let stockCache=[];
+async function openStock(){ $('stockModal').style.display='flex'; await loadStock(); }
+function closeStock(){ $('stockModal').style.display='none'; }
+async function loadStock(){
+  const box=$('stockList'); if(box) box.innerHTML='<div class="empty">Loading…</div>';
+  if(!sb) return;
+  const {data,error}=await sb.from('wrr_stock').select('*').order('item_code');
+  if(error){ if(box) box.innerHTML='<div class="empty">Could not load stock: '+esc(error.message)+'</div>'; return; }
+  stockCache=data||[];
+  renderStock();
+}
+function renderStock(){
+  const box=$('stockList'); if(!box) return;
+  const q=(($('stockSearch')&&$('stockSearch').value)||'').trim().toLowerCase();
+  let list=stockCache.slice();
+  if(q) list=list.filter(s=>((s.item_code||'')+' '+(s.description||'')+' '+(s.brand||'')).toLowerCase().includes(q));
+  if(!list.length){ box.innerHTML='<div class="empty">'+(stockCache.length?'No matches.':'No stock yet — approve a Receiving report to add inventory.')+'</div>'; return; }
+  let html='<div class="stock-row"><div class="stock-head">Item</div><div class="stock-head stock-num">Heads</div><div class="stock-head stock-num">Kgs</div></div>';
+  list.forEach(s=>{
+    const h=Number(s.heads||0), k=Number(s.kgs||0);
+    const dsc=[s.description,s.brand].filter(Boolean).join(' · ');
+    html+='<div class="stock-row"><div><div class="sc">'+esc(s.item_code)+'</div>'+(dsc?'<div class="sd">'+esc(dsc)+'</div>':'')+'</div>'+
+      '<div class="stock-num'+(h<0?' stock-neg':'')+'">'+fmt(h)+'</div>'+
+      '<div class="stock-num'+(k<0?' stock-neg':'')+'">'+fmt(k)+'</div></div>';
+  });
+  box.innerHTML=html;
+}
 const WRR_THEMES=['green','ocean','slate','maroon','dark'];
 function setTheme(t){ if(WRR_THEMES.indexOf(t)<0)t='green'; if(t==='green')document.body.removeAttribute('data-theme'); else document.body.setAttribute('data-theme',t); try{localStorage.setItem('pasei_wrr_theme',t)}catch(e){} const s=document.getElementById('themeSel'); if(s)s.value=t; }
 function loadTheme(){ let t='green'; try{t=localStorage.getItem('pasei_wrr_theme')||'green'}catch(e){} setTheme(t); }
@@ -1152,7 +1239,7 @@ function flash(msg,isErr){
 /* ---------- Form guide image (device-local override) ---------- */
 let guideSrc = localStorage.getItem('pasei_wrr_guide') || FORM_IMG;
 function applyGuideBtn(){ const b=document.getElementById('resetGuideBtn'); if(b) b.style.display = (isAdmin() && localStorage.getItem('pasei_wrr_guide')) ? 'inline-block' : 'none'; }
-async function loadGuideRemote(){ if(!sb) return; try{ const {data,error}=await sb.from('wrr_app_settings').select('value').eq('key','guide').maybeSingle(); if(!error && data && data.value && data.value.img){ guideSrc=data.value.img; try{localStorage.setItem('pasei_wrr_guide',guideSrc);}catch(e){} } else if(!error && data && data.value && data.value.img===null){ guideSrc=FORM_IMG; try{localStorage.removeItem('pasei_wrr_guide');}catch(e){} } }catch(e){} }
+async function loadGuideRemote(){ if(!sb) return; try{ const {data,error}=await sb.from('wrr_app_settings').select('value').eq('key',gkey('guide')).maybeSingle(); if(!error && data && data.value && data.value.img){ guideSrc=data.value.img; } else { guideSrc=FORM_IMG; } }catch(e){} }
 function ensurePdfJs(){
   return new Promise((resolve,reject)=>{
     if(window.pdfjsLib){resolve();return;}
@@ -1186,13 +1273,13 @@ async function changeGuide(e){
     else { dataUrl=await readImageFile(f); }
     guideSrc=dataUrl;
     try{ localStorage.setItem('pasei_wrr_guide',guideSrc); }catch(err){}
-    if(isAdmin() && sb){ const up=await sb.from('wrr_app_settings').upsert({key:'guide',value:{img:guideSrc}},{onConflict:'key'}); if(up.error){ flash('Saved on this device, but cloud save failed: '+up.error.message,true); } }
+    if(isAdmin() && sb){ const up=await sb.from('wrr_app_settings').upsert({key:gkey('guide'),value:{img:guideSrc}},{onConflict:'key'}); if(up.error){ flash('Saved on this device, but cloud save failed: '+up.error.message,true); } }
     if(!$('showGuide').checked) $('showGuide').checked=true;
     applyGuideBtn(); render(); flash(isAdmin()?'Form guide updated for everyone':'Form guide updated (this device)');
   }catch(err){ flash(err.message||'Could not load file',true); }
   finally{ e.target.value=''; }
 }
-async function resetGuide(){ localStorage.removeItem('pasei_wrr_guide'); guideSrc=FORM_IMG; if(isAdmin() && sb){ await sb.from('wrr_app_settings').upsert({key:'guide',value:{img:null}},{onConflict:'key'}); } applyGuideBtn(); render(); flash('Form guide reset to default'); }
+async function resetGuide(){ localStorage.removeItem('pasei_wrr_guide'); guideSrc=FORM_IMG; if(isAdmin() && sb){ await sb.from('wrr_app_settings').upsert({key:gkey('guide'),value:{img:null}},{onConflict:'key'}); } applyGuideBtn(); render(); flash('Form guide reset to default'); }
 applyGuideBtn();
 
 /* ---------- Init ---------- */
