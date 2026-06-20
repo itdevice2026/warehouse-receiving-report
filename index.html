@@ -416,8 +416,9 @@ function renderItemsTable(){
       if(k==='itemCode'){
         inp.setAttribute('list','itemCodeList');
         inp.addEventListener('change',e=>{
-          const m=itemMap[(e.target.value||'').trim().toLowerCase()];
-          if(m){ items[i].desc=m.description||''; if(refs.desc) refs.desc.value=items[i].desc; render(); }
+          const it=resolveItem(e.target.value);
+          if(it){ items[i].itemCode=it.item_code; e.target.value=it.item_code;
+                  items[i].desc=it.description||''; if(refs.desc) refs.desc.value=items[i].desc; render(); }
         });
       }
       refs[k]=inp;
@@ -894,7 +895,7 @@ async function adminToggleDisabled(email,disable){
 
 
 /* ---------- Item Code master ---------- */
-let itemMaster=[], itemMap={};
+let itemMaster=[], itemMap={}, labelMap={};
 async function loadItemMaster(){
   if(!sb) return;
   const {data,error}=await sb.from('wrr_items').select('item_code,item_group,description,brand,status').order('item_code');
@@ -906,8 +907,21 @@ async function loadItemMaster(){
 }
 function buildItemDatalist(){
   const dl=$('itemCodeList'); if(!dl) return;
-  dl.innerHTML=itemMaster.filter(it=>it.status==='Active')
-    .map(it=>'<option value="'+esc(it.item_code)+'">'+esc(it.description||'')+'</option>').join('');
+  labelMap={};
+  dl.innerHTML=itemMaster.filter(it=>it.status==='Active').map(it=>{
+    const parts=[it.description||'', it.brand||''].filter(Boolean).join(' — ');
+    const label=(parts?parts+' ':'')+'['+it.item_code+']';
+    labelMap[label.toLowerCase()]=it;
+    return '<option value="'+esc(label)+'"></option>';
+  }).join('');
+}
+function resolveItem(val){
+  const v=(val||'').trim(); if(!v) return null;
+  if(labelMap[v.toLowerCase()]) return labelMap[v.toLowerCase()];
+  if(itemMap[v.toLowerCase()]) return itemMap[v.toLowerCase()];
+  const m=v.match(/\[([^\]]+)\]\s*$/);
+  if(m && itemMap[m[1].trim().toLowerCase()]) return itemMap[m[1].trim().toLowerCase()];
+  return null;
 }
 function openItems(){ if(currentRole!=='admin'){ flash('Admin only',true); return; } $('itemsModal').style.display='flex'; loadItemMaster().then(renderItemsList); }
 function closeItems(){ $('itemsModal').style.display='none'; }
