@@ -461,7 +461,8 @@ function paintFields(place,fontSheetPx){
       let v=r[k]; if(v==='' || v==null)continue;
       if(k==='prodDate'||k==='expDate') v=fmtDate(v);
       const [lpx,rpx]=COL_PX[k];
-      place(lpx+cOff(k),yTop,v,ALIGN[k],rpx-lpx);
+      if(k==='desc'){ place(lpx+cOff(k), ROW_TOP+i*ROW_H+1.5+rT, v, 'left', rpx-lpx, false, true); }
+      else { place(lpx+cOff(k),yTop,v,ALIGN[k],rpx-lpx); }
     }
   });
   // totals
@@ -494,7 +495,7 @@ function buildOverlay(target){
   const pageWin=num($('pageW').value)||9.5;
   const fontPt=num($('fontPt').value)||8.5;
   const fontPx=fontPt*(SHEET_W/(pageWin*72));
-  const place=(leftPx,topPx,text,align,widthPx,bold)=>{
+  const place=(leftPx,topPx,text,align,widthPx,bold,wrap)=>{
     if(text==='' || text==null)return;
     const d=document.createElement('div');d.className='ov';d.textContent=text;
     d.style.top=pctT(topPx)+'%';d.style.left=pctL(leftPx)+'%';
@@ -503,6 +504,7 @@ function buildOverlay(target){
     if(align==='left')d.style.paddingLeft=PAD+'px';
     if(align==='right')d.style.paddingRight=PAD+'px';
     if(bold)d.style.fontWeight='bold';
+    if(wrap){ d.style.whiteSpace='normal'; d.style.lineHeight='1.02'; d.style.overflow='hidden'; d.style.maxHeight=pctT(ROW_H-1)+'%'; }
     target.appendChild(d);
   };
   paintFields(place,fontPx);
@@ -640,17 +642,18 @@ function buildOverlayInto(box,pageWin){
   const fontPt=num($('fontPt').value)||8.5;
   const fontPx=fontPt/72*96;                       // pt -> px at 96dpi for actual glyph size
   const fontSheetPx=fontPt*(SHEET_W/(pageWin*72)); // pt in 641px sheet space for vertical centering math
-  const place=(leftPx,topPx,text,align,widthPx,bold)=>{
+  const place=(leftPx,topPx,text,align,widthPx,bold,wrap)=>{
     if(text==='' || text==null)return;
     const d=document.createElement('div');d.className='ov';d.textContent=text;
     d.style.position='absolute';d.style.fontFamily='"Courier New",monospace';d.style.color='#000';
-    d.style.whiteSpace='nowrap';d.style.lineHeight='1';
+    d.style.whiteSpace=wrap?'normal':'nowrap';d.style.lineHeight=wrap?'1.02':'1';
     d.style.top=pctT(topPx)+'%';d.style.left=pctL(leftPx)+'%';
     d.style.fontSize=fontPx.toFixed(2)+'px';d.style.textAlign=align||'left';
     if(widthPx)d.style.width=pctL(widthPx)+'%';
     if(align==='left')d.style.paddingLeft=PAD+'px';
     if(align==='right')d.style.paddingRight=PAD+'px';
     if(bold)d.style.fontWeight='bold';
+    if(wrap){ d.style.overflow='hidden'; }
     box.appendChild(d);
   };
   paintFields(place,fontSheetPx);
