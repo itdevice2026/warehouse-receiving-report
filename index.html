@@ -162,7 +162,7 @@ table.admin-tbl select{padding:5px 7px;border:1px solid #cdd4cd;border-radius:6p
 <header class="app app-hidden" id="appHeader">
   <div>
     <h1>Pacific Agrisolutions Enterprises Inc. — Warehouse Receiving Report</h1>
-    <div class="sub">Pre-printed form data entry &amp; overlay print system &middot; <span id="buildTag">build 2026-06-20#8</span></div>
+    <div class="sub">Pre-printed form data entry &amp; overlay print system &middot; <span id="buildTag">build 2026-06-20#9</span></div>
   </div>
   <div class="btnrow">
     <span class="userbar"><span class="em" id="userEmail"></span><button class="logout" onclick="doLogout()">Sign out</button></span>
@@ -406,8 +406,8 @@ let adjustMode=false, previewScale=1, dragState=null;
 let layoutLocked = localStorage.getItem('pasei_wrr_layout_locked')==='1';
 function saveLayoutLock(){ try{ localStorage.setItem('pasei_wrr_layout_locked', layoutLocked?'1':'0'); }catch(e){} }
 function updateAdjustBtn(){ const b=$('adjustBtn'); if(!b)return; b.textContent = adjustMode ? 'Done' : (layoutLocked ? '\uD83D\uDD12 Unlock layout' : 'Adjust layout'); b.classList.toggle('active', adjustMode); }
-function normalizeLayout(l){ l=l||{}; return {fields:l.fields||{}, cols:l.cols||{}, rowTop:l.rowTop||0}; }
-function loadLayout(){ try{ return normalizeLayout(JSON.parse(localStorage.getItem('pasei_wrr_layout')||'{}')); }catch(e){ return {fields:{},cols:{},rowTop:0}; } }
+function normalizeLayout(l){ l=l||{}; return {gx:+l.gx||0, gy:+l.gy||0}; }  /* whole-overlay nudge */
+function loadLayout(){ try{ return normalizeLayout(JSON.parse(localStorage.getItem('pasei_wrr_layout')||'{}')); }catch(e){ return {gx:0,gy:0}; } }
 function saveLayout(){
   try{ localStorage.setItem('pasei_wrr_layout', JSON.stringify(layout)); }catch(e){}
   if(isAdmin() && sb){ sb.from('wrr_app_settings').upsert({key:'layout',value:layout},{onConflict:'key'}).then(({error})=>{ if(error) console.warn('layout save:',error.message); }); }
@@ -420,8 +420,8 @@ async function loadLayoutRemote(){
   }catch(e){ console.warn('layout load:',e.message); }
 }
 let layout = loadLayout();
-function fOff(k){ return layout.fields[k]||{dx:0,dy:0}; }
-function cOff(c){ return (layout.cols[c]&&layout.cols[c].dx)||0; }
+function fOff(k){ return {dx:layout.gx||0, dy:layout.gy||0}; }
+function cOff(c){ return layout.gx||0; }
 
 function blankRow(){return{itemCode:'',desc:'',uom:'',qty:'',weight:'',prodDate:'',expDate:'',pallet:'',remarks:''};}
 
@@ -487,7 +487,7 @@ function fitWidth(t,baseFpx,w,fam){ let f=baseFpx; for(let i=0;i<18 && _measureW
 
 /* ---------- Shared field painter (place: leftPx,topPx,text,align,widthPx,bold) ---------- */
 function paintFields(place,fontSheetPx){
-  const rT=layout.rowTop||0;
+  const rT=layout.gy||0;
   // header
   place(125+fOff('custName').dx,80+fOff('custName').dy,$('custName').value,'left');
   place(95+fOff('address').dx,106+fOff('address').dy,$('address').value,'left');
@@ -577,7 +577,7 @@ function handleDefs(){
   return d;
 }
 function renderHandles(target){
-  const rT=layout.rowTop||0;
+  const rT=layout.gy||0;
   handleDefs().forEach(([label,bx,by,kind,key])=>{
     let x,y;
     if(kind==='cell'){ x=bx+cOff(key); y=by+rT; }
@@ -608,13 +608,7 @@ function onDrag(e){
   const kx=(previewScale*sclX)||1, ky=(previewScale*sclY)||1;
   const dx=(e.clientX-dragState.x)/kx, dy=(e.clientY-dragState.y)/ky;
   dragState.x=e.clientX; dragState.y=e.clientY;
-  if(dragState.kind==='cell'){
-    const c=layout.cols[dragState.key]||(layout.cols[dragState.key]={dx:0});
-    c.dx=(c.dx||0)+dx; layout.rowTop=(layout.rowTop||0)+dy;
-  } else {
-    const o=layout.fields[dragState.key]||(layout.fields[dragState.key]={dx:0,dy:0});
-    o.dx+=dx; o.dy+=dy;
-  }
+  layout.gx=(layout.gx||0)+dx; layout.gy=(layout.gy||0)+dy;
   refreshHandles();
 }
 function endDrag(){ dragState=null; document.removeEventListener('mousemove',onDrag); document.removeEventListener('mouseup',endDrag); saveLayout(); }
@@ -631,7 +625,7 @@ function toggleAdjust(){
   render();
   flash(adjustMode ? 'Drag the labels to align, then click Done to lock' : 'Layout locked');
 }
-function resetLayout(){ if(!confirm('Reset all field alignment to default?'))return; layout={fields:{},cols:{},rowTop:0}; saveLayout(); render(); flash('Layout alignment reset'); }
+function resetLayout(){ if(!confirm('Reset alignment to default?'))return; layout={gx:0,gy:0}; saveLayout(); render(); flash('Alignment reset'); }
 let COL_PX_current=null;
 
 /* ---------- Render ---------- */
