@@ -70,6 +70,22 @@ button.btn{transition:background .12s,transform .05s;box-shadow:0 1px 2px rgba(0
 td .avail{font-size:10px;line-height:1.25;margin-top:3px;color:var(--green2);font-weight:600;white-space:normal}
 td .avail.avail-zero{color:var(--muted)}
 td .avail.avail-short{color:var(--red)}
+.trace-filters{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px}
+.trace-filters input,.trace-filters select{width:auto}
+.trace-filters #traceSearch{flex:1;min-width:150px}
+.trace-filters .tf{display:inline-flex;align-items:center;gap:5px;font-size:11px;color:var(--muted);text-transform:none;letter-spacing:0;margin:0}
+.trace-item{border:1px solid var(--line);border-radius:8px;margin-bottom:8px;overflow:hidden}
+.trace-head{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 12px;cursor:pointer;background:var(--tint)}
+.trace-head .sd{font-size:11px;color:var(--muted);font-weight:400}
+.tg-arrow{display:inline-block;width:12px;color:var(--green2)}
+.tg-sum{display:flex;gap:14px;font-size:12px;font-weight:600;white-space:nowrap}
+.trace-detail{padding:6px 10px 10px;overflow:auto}
+.trace-tbl{width:100%;border-collapse:collapse;font-size:11px}
+.trace-tbl th{text-align:left;color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.3px;padding:5px 6px;border-bottom:1px solid var(--line);white-space:nowrap}
+.trace-tbl td{padding:4px 6px;border-bottom:1px solid var(--line);white-space:nowrap}
+.trace-tbl td.r,.trace-tbl th.r{text-align:right;font-variant-numeric:tabular-nums}
+.dir-in{color:var(--green2);font-weight:700}
+.dir-out{color:var(--red);font-weight:700}
 #saveBtn{background:linear-gradient(135deg,#16a05f,#0b6b3a);box-shadow:0 2px 7px rgba(11,107,58,.4);padding:9px 20px;font-weight:700;letter-spacing:.2px}
 #saveBtn:hover{background:linear-gradient(135deg,#12894f,#085c31)}
 #saveBtn:active{transform:translateY(1px);box-shadow:0 1px 3px rgba(11,107,58,.4)}
@@ -190,7 +206,7 @@ table.admin-tbl select{padding:5px 7px;border:1px solid var(--field-bd);border-r
 <header class="app app-hidden" id="appHeader">
   <div>
     <h1 id="docTitle">Pacific Agrisolutions Enterprises Inc. — Warehouse Receiving Report</h1>
-    <div class="sub">Pre-printed form data entry &amp; overlay print system &middot; <span id="buildTag">build 2026-06-20#24</span></div>
+    <div class="sub">Pre-printed form data entry &amp; overlay print system &middot; <span id="buildTag">build 2026-06-20#25</span></div>
     <div class="doctype-switch">
       <button type="button" id="dtReceiving" class="dt active" onclick="setDocType('receiving')"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Receiving (Stock In)</button>
       <button type="button" id="dtIssuance" class="dt" onclick="setDocType('issuance')"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>Issuance (Stock Out)</button>
@@ -202,6 +218,7 @@ table.admin-tbl select{padding:5px 7px;border:1px solid var(--field-bd);border-r
     <button class="btn ghost icon app-hidden" id="itemsBtn" onclick="openItems()"><svg viewBox="0 0 24 24" fill="none"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.3 7 12 12 20.7 7"/><line x1="12" y1="22" x2="12" y2="12"/></svg>Items</button>
     <button class="btn ghost icon" id="recordsBtn" onclick="openRecords()"><svg viewBox="0 0 24 24" fill="none"><path d="M3 7V5a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v2"/><path d="M3 7h18a1 1 0 0 1 1 1.16l-1.5 9A2 2 0 0 1 18.5 19H5.5a2 2 0 0 1-2-1.84L2 8.16A1 1 0 0 1 3 7z"/></svg><span id="recBtnLbl">Saved Reports</span></button>
     <button class="btn ghost icon" id="stockBtn" onclick="openStock()"><svg viewBox="0 0 24 24" fill="none"><path d="M3 9l9-5 9 5v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M3 9h18"/><path d="M9 21v-8h6v8"/></svg>Stock</button>
+    <button class="btn ghost icon" id="traceBtn" onclick="openTrace()"><svg viewBox="0 0 24 24" fill="none"><path d="M3 3v18h18"/><path d="M7 14l4-4 3 3 5-6"/></svg>Trace</button>
     <button class="btn ghost icon" onclick="newRecord()"><svg viewBox="0 0 24 24" fill="none"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="14 3 14 9 20 9"/><line x1="12" y1="12.5" x2="12" y2="17.5"/><line x1="9.5" y1="15" x2="14.5" y2="15"/></svg>New</button>
     <button class="btn ghost icon" id="previewBtn" onclick="openPreview()"><svg viewBox="0 0 24 24" fill="none"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>Preview</button>
     <button class="btn icon" id="saveBtn" onclick="saveRecord()"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>Save</button>
@@ -301,6 +318,24 @@ table.admin-tbl select{padding:5px 7px;border:1px solid var(--field-bd);border-r
         <input id="itSearch" placeholder="Search code, group, description, brand…" oninput="renderItemsList()" style="padding:6px 9px;border:1px solid var(--field-bd);border-radius:6px;font-size:13px;width:260px">
       </div>
       <div id="itemsList"><div class="empty">Loading…</div></div>
+    </div>
+  </div>
+</div>
+
+<div id="traceModal" class="modal-overlay" style="display:none">
+  <div class="modal" style="max-width:940px">
+    <div class="modal-head"><h2>Stock Traceability — Incoming &amp; Outgoing</h2><button class="modal-x" onclick="closeTrace()" title="Close">&times;</button></div>
+    <div class="modal-body">
+      <div class="trace-filters">
+        <input id="traceSearch" placeholder="Search item, doc no, party…" oninput="renderTrace()">
+        <select id="traceDir" onchange="renderTrace()"><option value="all">All movements</option><option value="in">Incoming only</option><option value="out">Outgoing only</option></select>
+        <label class="tf">From <input type="date" id="traceFrom" onchange="renderTrace()"></label>
+        <label class="tf">To <input type="date" id="traceTo" onchange="renderTrace()"></label>
+        <button class="btn ghost" onclick="loadTrace()">Refresh</button>
+        <button class="btn" onclick="exportTrace()">⬇ Export Excel</button>
+      </div>
+      <p class="hint" style="margin-top:0">Each approved <b>Receiving</b> is an incoming (IN) movement; each approved <b>Issuance</b> is outgoing (OUT). Click an item to expand its full movement ledger with running balance.</p>
+      <div id="traceBody"><div class="empty">Loading…</div></div>
     </div>
   </div>
 </div>
@@ -1125,6 +1160,85 @@ function updateAvail(i, refs){
   const short=need>s.heads;
   cell.textContent='On hand: '+fmt(s.heads)+' heads · '+fmt(s.kgs)+' kgs'+(short?'  ⚠ exceeds stock':'');
   cell.className='avail'+(short?' avail-short':(s.heads<=0?' avail-zero':''));
+}
+/* ---------- Traceability (incoming + outgoing movements) ---------- */
+let traceCache=[];
+async function openTrace(){ $('traceModal').style.display='flex'; await loadTrace(); }
+function closeTrace(){ $('traceModal').style.display='none'; }
+async function loadTrace(){
+  const box=$('traceBody'); if(box) box.innerHTML='<div class="empty">Loading…</div>';
+  if(!sb) return;
+  const {data,error}=await sb.from('wrr_movements').select('*');
+  if(error){ if(box) box.innerHTML='<div class="empty">Could not load: '+esc(error.message)+'</div>'; return; }
+  traceCache=data||[];
+  renderTrace();
+}
+function traceFiltered(){
+  let list=traceCache.slice();
+  const q=(($('traceSearch')&&$('traceSearch').value)||'').trim().toLowerCase();
+  const dir=($('traceDir')&&$('traceDir').value)||'all';
+  const from=($('traceFrom')&&$('traceFrom').value)||'';
+  const to=($('traceTo')&&$('traceTo').value)||'';
+  if(q) list=list.filter(m=>((m.item_code||'')+' '+(m.description||'')+' '+(m.brand||'')+' '+(m.docno||'')+' '+(m.custname||'')).toLowerCase().includes(q));
+  if(dir==='in') list=list.filter(m=>m.direction==='IN');
+  if(dir==='out') list=list.filter(m=>m.direction==='OUT');
+  if(from) list=list.filter(m=>(m.docdate||'')>=from);
+  if(to) list=list.filter(m=>(m.docdate||'')<=to);
+  return list;
+}
+function _byDate(a,b){ return (a.docdate||'').localeCompare(b.docdate||'') || (a.docno||'').localeCompare(b.docno||''); }
+function renderTrace(){
+  const box=$('traceBody'); if(!box) return;
+  const list=traceFiltered();
+  if(!list.length){ box.innerHTML='<div class="empty">'+(traceCache.length?'No movements match the filters.':'No approved movements yet — approve a Receiving or Issuance report.')+'</div>'; return; }
+  const groups={};
+  list.forEach(m=>{ (groups[m.item_code]=groups[m.item_code]||[]).push(m); });
+  let html='';
+  Object.keys(groups).sort().forEach(code=>{
+    const ms=groups[code].slice().sort(_byDate);
+    let inH=0,outH=0,inK=0,outK=0;
+    ms.forEach(m=>{ if(m.direction==='IN'){inH+=Number(m.heads||0);inK+=Number(m.kgs||0);} else {outH+=Number(m.heads||0);outK+=Number(m.kgs||0);} });
+    const onH=inH-outH, onK=inK-outK;
+    const desc=[ms[0].description,ms[0].brand].filter(Boolean).join(' · ');
+    const gid='tg_'+code.replace(/[^a-z0-9]/gi,'_');
+    html+='<div class="trace-item">'+
+      '<div class="trace-head" onclick="toggleTrace(\''+gid+'\')">'+
+        '<div><span class="tg-arrow" id="'+gid+'_a">▶</span> <b>'+esc(code)+'</b>'+(desc?' <span class="sd">'+esc(desc)+'</span>':'')+'</div>'+
+        '<div class="tg-sum"><span class="dir-in">In '+fmt(inH)+'</span><span class="dir-out">Out '+fmt(outH)+'</span><span class="'+(onH<0?'stock-neg':'')+'">On hand '+fmt(onH)+' hd / '+fmt(onK)+' kg</span></div>'+
+      '</div>'+
+      '<div class="trace-detail" id="'+gid+'" style="display:none">'+ledgerTable(ms)+'</div>'+
+    '</div>';
+  });
+  box.innerHTML=html;
+}
+function ledgerTable(ms){
+  let run=0, rows='';
+  ms.forEach(m=>{
+    const h=Number(m.heads||0); run += (m.direction==='IN'? h : -h);
+    rows+='<tr><td>'+esc(fmtDate(m.docdate)||'')+'</td><td><span class="dir-'+m.direction.toLowerCase()+'">'+m.direction+'</span></td><td>'+esc(m.docno||'')+'</td><td>'+esc(m.custname||'')+'</td>'+
+      '<td class="r">'+(m.direction==='IN'?fmt(h):'')+'</td><td class="r">'+(m.direction==='OUT'?fmt(h):'')+'</td><td class="r"><b>'+fmt(run)+'</b></td><td class="r">'+fmt(Number(m.kgs||0))+'</td>'+
+      '<td>'+esc(m.crate||'')+'</td><td>'+esc(m.pallet||'')+'</td><td>'+esc(fmtDate(m.prod_date)||'')+'</td><td>'+esc(fmtDate(m.exp_date)||'')+'</td><td>'+esc(m.remarks||'')+'</td></tr>';
+  });
+  return '<table class="trace-tbl"><thead><tr><th>Date</th><th>Dir</th><th>Doc No</th><th>Party</th><th class="r">In</th><th class="r">Out</th><th class="r">Balance</th><th class="r">Kgs</th><th>Crate</th><th>Pallet</th><th>Prod</th><th>Exp</th><th>Remarks</th></tr></thead><tbody>'+rows+'</tbody></table>';
+}
+function toggleTrace(gid){ const d=$(gid), a=$(gid+'_a'); if(!d) return; const open=d.style.display==='none'; d.style.display=open?'block':'none'; if(a) a.textContent=open?'▼':'▶'; }
+async function exportTrace(){
+  const list=traceFiltered();
+  if(!list.length){ flash('Nothing to export',true); return; }
+  try{ await ensureXlsx(); }catch(e){ flash('Could not load the Excel library',true); return; }
+  const g={};
+  list.forEach(m=>{ const o=g[m.item_code]=g[m.item_code]||{Item:m.item_code,Description:m.description,Brand:m.brand,'Received (heads)':0,'Issued (heads)':0,'Received (kgs)':0,'Issued (kgs)':0};
+    if(m.direction==='IN'){o['Received (heads)']+=Number(m.heads||0);o['Received (kgs)']+=Number(m.kgs||0);} else {o['Issued (heads)']+=Number(m.heads||0);o['Issued (kgs)']+=Number(m.kgs||0);} });
+  const sumRows=Object.keys(g).sort().map(k=>{ const o=g[k]; o['On Hand (heads)']=o['Received (heads)']-o['Issued (heads)']; o['On Hand (kgs)']=o['Received (kgs)']-o['Issued (kgs)']; return o; });
+  const ledger=list.slice().sort((a,b)=> (a.item_code||'').localeCompare(b.item_code||'') || _byDate(a,b));
+  const bal={};
+  const ledRows=ledger.map(m=>{ const h=Number(m.heads||0); bal[m.item_code]=(bal[m.item_code]||0)+(m.direction==='IN'?h:-h);
+    return {Item:m.item_code,Description:m.description,Brand:m.brand,Direction:m.direction,'Doc No':m.docno,Date:fmtDate(m.docdate),Party:m.custname,'In (heads)':m.direction==='IN'?h:'','Out (heads)':m.direction==='OUT'?h:'','Balance (heads)':bal[m.item_code],Kgs:Number(m.kgs||0),Crate:m.crate,Pallet:m.pallet,'Prod Date':fmtDate(m.prod_date),'Exp Date':fmtDate(m.exp_date),Remarks:m.remarks}; });
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(sumRows), 'Summary');
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(ledRows), 'Movements');
+  XLSX.writeFile(wb, 'Stock_Traceability_'+new Date().toISOString().slice(0,10)+'.xlsx');
+  flash('Exported Excel');
 }
 async function openStock(){ $('stockModal').style.display='flex'; await loadStock(); }
 function closeStock(){ $('stockModal').style.display='none'; }
