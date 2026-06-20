@@ -415,7 +415,12 @@ function renderItemsTable(){
       inp.oninput=e=>{items[i][k]=e.target.value; render();};
       if(k==='itemCode'){
         inp.setAttribute('list','itemCodeList');
+        inp.addEventListener('input',e=>{
+          if(!(e.target.value||'').trim()){ items[i].desc=''; if(refs.desc) refs.desc.value=''; render(); }
+        });
         inp.addEventListener('change',e=>{
+          const val=(e.target.value||'').trim();
+          if(!val){ items[i].desc=''; if(refs.desc) refs.desc.value=''; render(); return; }
           const it=resolveItem(e.target.value);
           if(it){ items[i].itemCode=it.item_code; e.target.value=it.item_code;
                   items[i].desc=itemDescWithBrand(it); if(refs.desc) refs.desc.value=items[i].desc; render(); }
