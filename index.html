@@ -194,7 +194,7 @@ button.warn:hover{background:#f6d5d0}
         <label class="toggle"><input type="checkbox" id="showGuide" checked onchange="render()"> Show form guide</label>
         <button class="btn ghost" type="button" style="padding:4px 9px;font-size:12px" onclick="document.getElementById('guideFile').click()">Change guide…</button>
         <button class="btn ghost" type="button" id="resetGuideBtn" style="padding:4px 9px;font-size:12px;display:none" onclick="resetGuide()">Reset</button>
-        <input type="file" id="guideFile" accept="image/*" style="display:none" onchange="changeGuide(event)">
+        <input type="file" id="guideFile" accept="image/*,application/pdf,.pdf" style="display:none" onchange="changeGuide(event)">
         <span class="badge" id="rowBadge">0 rows</span>
       </div>
       <div class="previewbox">
@@ -565,12 +565,43 @@ function flash(msg,isErr){
 /* ---------- Form guide image (device-local override) ---------- */
 let guideSrc = localStorage.getItem('pasei_wrr_guide') || FORM_IMG;
 function applyGuideBtn(){ const b=document.getElementById('resetGuideBtn'); if(b) b.style.display = localStorage.getItem('pasei_wrr_guide') ? 'inline-block' : 'none'; }
-function changeGuide(e){
-  const f=e.target.files && e.target.files[0]; if(!f) return;
-  if(!/^image\//.test(f.type)){ flash('Please choose an image file',true); e.target.value=''; return; }
-  const r=new FileReader();
-  r.onload=()=>{ try{ guideSrc=r.result; localStorage.setItem('pasei_wrr_guide',guideSrc); }catch(err){ flash('Image too large to save on this device',true); return; } if(!$('showGuide').checked) $('showGuide').checked=true; applyGuideBtn(); render(); flash('Form guide updated'); };
-  r.readAsDataURL(f); e.target.value='';
+function ensurePdfJs(){
+  return new Promise((resolve,reject)=>{
+    if(window.pdfjsLib){resolve();return;}
+    const s=document.createElement('script');
+    s.src='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+    s.onload=()=>{ try{ window.pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js'; }catch(e){} resolve(); };
+    s.onerror=()=>reject(new Error('Could not load PDF library (check connection)'));
+    document.head.appendChild(s);
+  });
+}
+async function pdfToImage(file){
+  await ensurePdfJs();
+  const buf=await file.arrayBuffer();
+  const pdf=await window.pdfjsLib.getDocument({data:buf}).promise;
+  const page=await pdf.getPage(1);
+  const viewport=page.getViewport({scale:2});
+  const canvas=document.createElement('canvas');
+  canvas.width=viewport.width; canvas.height=viewport.height;
+  await page.render({canvasContext:canvas.getContext('2d'),viewport}).promise;
+  return canvas.toDataURL('image/jpeg',0.85);
+}
+function readImageFile(file){ return new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(r.result); r.onerror=()=>rej(new Error('Could not read file')); r.readAsDataURL(file); }); }
+async function changeGuide(e){
+  const f=e.target.files && e.target.files[0]; if(!f){ return; }
+  const isPdf=/pdf/i.test(f.type)||/\.pdf$/i.test(f.name);
+  const isImg=/^image\//.test(f.type);
+  if(!isPdf && !isImg){ flash('Please choose an image or PDF file',true); e.target.value=''; return; }
+  try{
+    let dataUrl;
+    if(isPdf){ flash('Rendering PDF…'); dataUrl=await pdfToImage(f); }
+    else { dataUrl=await readImageFile(f); }
+    guideSrc=dataUrl;
+    try{ localStorage.setItem('pasei_wrr_guide',guideSrc); }catch(err){ flash('Guide too large to save on this device; showing for now',true); }
+    if(!$('showGuide').checked) $('showGuide').checked=true;
+    applyGuideBtn(); render(); flash('Form guide updated');
+  }catch(err){ flash(err.message||'Could not load file',true); }
+  finally{ e.target.value=''; }
 }
 function resetGuide(){ localStorage.removeItem('pasei_wrr_guide'); guideSrc=FORM_IMG; applyGuideBtn(); render(); flash('Form guide reset to default'); }
 applyGuideBtn();
