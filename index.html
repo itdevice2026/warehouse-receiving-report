@@ -67,6 +67,9 @@ button.btn{transition:background .12s,transform .05s;box-shadow:0 1px 2px rgba(0
 .stock-num{font-variant-numeric:tabular-nums;font-weight:600;text-align:right;min-width:74px}
 .stock-neg{color:var(--red)}
 .stock-head{font-size:10px;text-transform:uppercase;letter-spacing:.4px;color:var(--muted);font-weight:700}
+td .avail{font-size:10px;line-height:1.25;margin-top:3px;color:var(--green2);font-weight:600;white-space:normal}
+td .avail.avail-zero{color:var(--muted)}
+td .avail.avail-short{color:var(--red)}
 #saveBtn{background:linear-gradient(135deg,#16a05f,#0b6b3a);box-shadow:0 2px 7px rgba(11,107,58,.4);padding:9px 20px;font-weight:700;letter-spacing:.2px}
 #saveBtn:hover{background:linear-gradient(135deg,#12894f,#085c31)}
 #saveBtn:active{transform:translateY(1px);box-shadow:0 1px 3px rgba(11,107,58,.4)}
@@ -187,7 +190,7 @@ table.admin-tbl select{padding:5px 7px;border:1px solid var(--field-bd);border-r
 <header class="app app-hidden" id="appHeader">
   <div>
     <h1 id="docTitle">Pacific Agrisolutions Enterprises Inc. — Warehouse Receiving Report</h1>
-    <div class="sub">Pre-printed form data entry &amp; overlay print system &middot; <span id="buildTag">build 2026-06-20#23</span></div>
+    <div class="sub">Pre-printed form data entry &amp; overlay print system &middot; <span id="buildTag">build 2026-06-20#24</span></div>
     <div class="doctype-switch">
       <button type="button" id="dtReceiving" class="dt active" onclick="setDocType('receiving')"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Receiving (Stock In)</button>
       <button type="button" id="dtIssuance" class="dt" onclick="setDocType('issuance')"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>Issuance (Stock Out)</button>
@@ -502,23 +505,27 @@ function renderItemsTable(){
       const inp=document.createElement('input');
       if(k==='prodDate'||k==='expDate'){ inp.type='date'; inp.value=toInputDate(r[k]||''); }
       else { inp.value=r[k]||''; }
-      inp.oninput=e=>{items[i][k]=e.target.value; render();};
+      inp.oninput=e=>{items[i][k]=e.target.value; render(); if(k==='qty')updateAvail(i,refs);};
       if(k==='itemCode'){
         inp.setAttribute('list','itemCodeList');
         inp.addEventListener('input',e=>{
-          if(!(e.target.value||'').trim()){ items[i].desc=''; if(refs.desc) refs.desc.value=''; render(); }
+          if(!(e.target.value||'').trim()){ items[i].desc=''; if(refs.desc) refs.desc.value=''; render(); updateAvail(i,refs); }
         });
         inp.addEventListener('change',e=>{
           const val=(e.target.value||'').trim();
-          if(!val){ items[i].desc=''; if(refs.desc) refs.desc.value=''; render(); return; }
+          if(!val){ items[i].desc=''; if(refs.desc) refs.desc.value=''; render(); updateAvail(i,refs); return; }
           const it=resolveItem(e.target.value);
           if(it){ items[i].itemCode=it.item_code; e.target.value=it.item_code;
                   items[i].desc=itemDescWithBrand(it); if(refs.desc) refs.desc.value=items[i].desc; render(); }
+          updateAvail(i,refs);
         });
       }
       refs[k]=inp;
-      td.appendChild(inp); tr.appendChild(td);
+      td.appendChild(inp);
+      if(k==='desc'){ const av=document.createElement('div'); av.className='avail'; td.appendChild(av); refs.avail=av; }
+      tr.appendChild(td);
     });
+    updateAvail(i,refs);
     const rm=document.createElement('td'); rm.className='rm';
     rm.innerHTML='<button class="rmbtn" title="Remove row">×</button>';
     rm.firstChild.onclick=()=>removeRow(i);
@@ -798,6 +805,7 @@ async function onSignedIn(){
   applyGuideBtn();
   render();
   await loadItemMaster();
+  await loadStockMap();
   $('authGate').style.display='none';
   $('appHeader').classList.remove('app-hidden');
   $('appWrap').classList.remove('app-hidden');
@@ -944,14 +952,14 @@ async function signStep(){
   if(!currentId){ flash('Save the report first',true); return; }
   const {data,error}=await sb.rpc('wrr_sign',{p_id:currentId});
   if(error){ flash(error.message||'Could not sign',true); return; }
-  loadDoc(data); flash('Signed'); await refreshRecords();
+  loadDoc(data); flash('Signed'); await refreshRecords(); await loadStockMap();
 }
 async function revertStep(){
   if(!currentId) return;
   if(!confirm('Revert the most recent approval step?')) return;
   const {data,error}=await sb.rpc('wrr_revert',{p_id:currentId});
   if(error){ flash(error.message||'Could not revert',true); return; }
-  loadDoc(data); flash('Reverted one step'); await refreshRecords();
+  loadDoc(data); flash('Reverted one step'); await refreshRecords(); await loadStockMap();
 }
 function applyLock(){
   const locked = (currentStatus==='approved');
@@ -1091,6 +1099,7 @@ async function setDocType(t){
   docType=t;
   applyDocTypeUI();
   newRecord();
+  if(docType==='issuance'){ await loadStockMap(); } else { refreshAllAvail(); }
   await loadLayoutRemote();
   await loadGuideRemote();
   if(typeof applyGuideBtn==='function') applyGuideBtn();
@@ -1100,6 +1109,23 @@ async function setDocType(t){
 
 /* ---------- Stock / Inventory module ---------- */
 let stockCache=[];
+let stockMap={};
+function buildStockMap(rows){ stockMap={}; (rows||[]).forEach(s=>{ stockMap[String(s.item_code||'').toUpperCase()]={heads:Number(s.heads||0),kgs:Number(s.kgs||0)}; }); }
+async function loadStockMap(){ if(!sb) return; try{ const {data}=await sb.from('wrr_stock').select('item_code,heads,kgs'); buildStockMap(data); refreshAllAvail(); }catch(e){} }
+function refreshAllAvail(){ const rows=document.querySelectorAll('#itemBody tr'); rows.forEach((tr,i)=>{ const av=tr.querySelector('.avail'); if(av) updateAvail(i,{avail:av}); }); }
+function updateAvail(i, refs){
+  const cell = refs && refs.avail; if(!cell) return;
+  if(docType!=='issuance'){ cell.style.display='none'; cell.textContent=''; return; }
+  cell.style.display='block';
+  const code=((items[i]&&items[i].itemCode)||'').trim().toUpperCase();
+  if(!code){ cell.textContent=''; cell.className='avail'; return; }
+  const s=stockMap[code];
+  if(!s){ cell.textContent='On hand: 0 — no stock'; cell.className='avail avail-zero'; return; }
+  const need=num(items[i].qty);
+  const short=need>s.heads;
+  cell.textContent='On hand: '+fmt(s.heads)+' heads · '+fmt(s.kgs)+' kgs'+(short?'  ⚠ exceeds stock':'');
+  cell.className='avail'+(short?' avail-short':(s.heads<=0?' avail-zero':''));
+}
 async function openStock(){ $('stockModal').style.display='flex'; await loadStock(); }
 function closeStock(){ $('stockModal').style.display='none'; }
 async function loadStock(){
@@ -1108,6 +1134,7 @@ async function loadStock(){
   const {data,error}=await sb.from('wrr_stock').select('*').order('item_code');
   if(error){ if(box) box.innerHTML='<div class="empty">Could not load stock: '+esc(error.message)+'</div>'; return; }
   stockCache=data||[];
+  buildStockMap(stockCache); refreshAllAvail();
   renderStock();
 }
 function renderStock(){
