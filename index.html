@@ -136,7 +136,7 @@ button.warn:hover{background:#f6d5d0}
       <h2>Receiving Report Details</h2>
       <div class="grid2">
         <div class="field"><label>Customer Name</label><input id="custName" oninput="render()"></div>
-        <div class="field"><label>Date</label><input id="docDate" oninput="render()" placeholder="MM/DD/YYYY"></div>
+        <div class="field"><label>Date</label><input id="docDate" type="date" oninput="render()"></div>
       </div>
       <div class="grid2">
         <div class="field"><label>Address</label><input id="address" oninput="render()"></div>
@@ -312,7 +312,7 @@ function paintFields(place,fontSheetPx){
   // header
   place(125,80,$('custName').value,'left');
   place(95,106,$('address').value,'left');
-  place(470,72,$('docDate').value,'left');
+  place(470,72,fmtDate($('docDate').value),'left');
   place(478,95,$('docNo').value,'left');
   // line items
   items.forEach((r,i)=>{
@@ -479,7 +479,7 @@ function readDoc(){
 }
 function loadDoc(d){
   currentId=d.id;
-  $('custName').value=d.custname||'';$('address').value=d.address||'';$('docDate').value=d.docdate||'';$('docNo').value=d.docno||'';
+  $('custName').value=d.custname||'';$('address').value=d.address||'';$('docDate').value=toInputDate(d.docdate)||'';$('docNo').value=d.docno||'';
   $('checkedName').value=d.checkedname||'';$('checkedDate').value=d.checkeddate||'';
   $('verifiedName').value=d.verifiedname||'';$('verifiedDate').value=d.verifieddate||'';
   $('approvedName').value=d.approvedname||'';$('approvedDate').value=d.approveddate||'';
@@ -529,7 +529,7 @@ function renderRecords(){
     const dt=new Date(d.updated_at||d.created_at||Date.now());
     const its=Array.isArray(d.items)?d.items:[];
     el.innerHTML=`<div class="meta"><div class="t">${esc(d.custname||'(no customer)')}</div>
-      <div class="d">${esc(d.docdate||'')} · ${its.filter(r=>r.itemCode||r.desc).length} items · ${dt.toLocaleDateString()}</div></div>
+      <div class="d">${esc(fmtDate(d.docdate)||'')} · ${its.filter(r=>r.itemCode||r.desc).length} items · ${dt.toLocaleDateString()}</div></div>
       <button class="del" title="Delete">🗑</button>`;
     el.onclick=()=>loadDoc(d);
     el.querySelector('.del').onclick=ev=>delRecord(d.id,ev);
@@ -537,6 +537,8 @@ function renderRecords(){
   });
 }
 function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+function fmtDate(v){ if(!v) return ''; const m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(v); return m? (m[2]+'/'+m[3]+'/'+m[1]) : v; }
+function toInputDate(v){ if(!v) return ''; if(/^\d{4}-\d{2}-\d{2}$/.test(v)) return v; const m=/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(v); return m? (m[3]+'-'+m[1].padStart(2,'0')+'-'+m[2].padStart(2,'0')) : v; }
 
 /* ---------- Settings persistence ---------- */
 function saveSettings(){
