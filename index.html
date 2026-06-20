@@ -669,7 +669,15 @@ async function saveRecord(){
   let res;
   if(currentId){ res=await sb.from('wrr_reports').update(d).eq('id',currentId).select().single(); }
   else { res=await sb.from('wrr_reports').insert(d).select().single(); }
-  if(res.error){ flash('Save failed: '+res.error.message,true); return; }
+  if(res.error){
+    const m=res.error, msg=(m.message||'')+'';
+    if(m.code==='23505' || /duplicate key|wrr_reports_docno_uniq/i.test(msg)){
+      flash('Report number "'+($('docNo').value||'').trim()+'" already exists — please use a unique number',true);
+    } else if(m.code==='23514' || /docno_required|check constraint/i.test(msg)){
+      flash('Receiving Report Number is required',true); try{$('docNo').focus();}catch(e){}
+    } else { flash('Save failed: '+msg,true); }
+    return;
+  }
   currentId=res.data.id; currentStatus=res.data.status||currentStatus;
   flash('Saved to cloud');
   await refreshRecords();
