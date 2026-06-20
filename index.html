@@ -237,7 +237,7 @@ table.admin-tbl select{padding:5px 7px;border:1px solid #cdd4cd;border-radius:6p
       <h2>Live Preview</h2>
       <div class="field-toolbar">
         <label class="toggle"><input type="checkbox" id="showGuide" checked onchange="render()"> Show form guide</label>
-        <button class="btn ghost" type="button" style="padding:4px 9px;font-size:12px" onclick="document.getElementById('guideFile').click()">Change guide…</button>
+        <button class="btn ghost" type="button" id="changeGuideBtn" style="padding:4px 9px;font-size:12px" onclick="document.getElementById('guideFile').click()">Change guide…</button>
         <button class="btn ghost" type="button" id="resetGuideBtn" style="padding:4px 9px;font-size:12px;display:none" onclick="resetGuide()">Reset</button>
         <input type="file" id="guideFile" accept="image/*,application/pdf,.pdf" style="display:none" onchange="changeGuide(event)">
         <button class="btn ghost app-hidden" type="button" id="adjustBtn" style="padding:4px 9px;font-size:12px" onclick="toggleAdjust()">Adjust layout</button>
@@ -741,7 +741,11 @@ async function onSignedIn(){
   if($('adminBtn')) $('adminBtn').classList.toggle('app-hidden', !isAdmin());
   if($('itemsBtn')) $('itemsBtn').classList.toggle('app-hidden', !isAdmin());
   if($('adjustBtn')){ $('adjustBtn').classList.toggle('app-hidden', !isAdmin()); updateAdjustBtn(); }
-  await loadLayoutRemote(); render();
+  await loadLayoutRemote();
+  await loadGuideRemote();
+  if($('changeGuideBtn')) $('changeGuideBtn').classList.toggle('app-hidden', !isAdmin());
+  applyGuideBtn();
+  render();
   await loadItemMaster();
   $('authGate').style.display='none';
   $('appHeader').classList.remove('app-hidden');
@@ -1115,7 +1119,8 @@ function flash(msg,isErr){
 
 /* ---------- Form guide image (device-local override) ---------- */
 let guideSrc = localStorage.getItem('pasei_wrr_guide') || FORM_IMG;
-function applyGuideBtn(){ const b=document.getElementById('resetGuideBtn'); if(b) b.style.display = localStorage.getItem('pasei_wrr_guide') ? 'inline-block' : 'none'; }
+function applyGuideBtn(){ const b=document.getElementById('resetGuideBtn'); if(b) b.style.display = (isAdmin() && localStorage.getItem('pasei_wrr_guide')) ? 'inline-block' : 'none'; }
+async function loadGuideRemote(){ if(!sb) return; try{ const {data,error}=await sb.from('wrr_app_settings').select('value').eq('key','guide').maybeSingle(); if(!error && data && data.value && data.value.img){ guideSrc=data.value.img; try{localStorage.setItem('pasei_wrr_guide',guideSrc);}catch(e){} } else if(!error && data && data.value && data.value.img===null){ guideSrc=FORM_IMG; try{localStorage.removeItem('pasei_wrr_guide');}catch(e){} } }catch(e){} }
 function ensurePdfJs(){
   return new Promise((resolve,reject)=>{
     if(window.pdfjsLib){resolve();return;}
@@ -1148,13 +1153,14 @@ async function changeGuide(e){
     if(isPdf){ flash('Rendering PDF…'); dataUrl=await pdfToImage(f); }
     else { dataUrl=await readImageFile(f); }
     guideSrc=dataUrl;
-    try{ localStorage.setItem('pasei_wrr_guide',guideSrc); }catch(err){ flash('Guide too large to save on this device; showing for now',true); }
+    try{ localStorage.setItem('pasei_wrr_guide',guideSrc); }catch(err){}
+    if(isAdmin() && sb){ const up=await sb.from('wrr_app_settings').upsert({key:'guide',value:{img:guideSrc}},{onConflict:'key'}); if(up.error){ flash('Saved on this device, but cloud save failed: '+up.error.message,true); } }
     if(!$('showGuide').checked) $('showGuide').checked=true;
-    applyGuideBtn(); render(); flash('Form guide updated');
+    applyGuideBtn(); render(); flash(isAdmin()?'Form guide updated for everyone':'Form guide updated (this device)');
   }catch(err){ flash(err.message||'Could not load file',true); }
   finally{ e.target.value=''; }
 }
-function resetGuide(){ localStorage.removeItem('pasei_wrr_guide'); guideSrc=FORM_IMG; applyGuideBtn(); render(); flash('Form guide reset to default'); }
+async function resetGuide(){ localStorage.removeItem('pasei_wrr_guide'); guideSrc=FORM_IMG; if(isAdmin() && sb){ await sb.from('wrr_app_settings').upsert({key:'guide',value:{img:null}},{onConflict:'key'}); } applyGuideBtn(); render(); flash('Form guide reset to default'); }
 applyGuideBtn();
 
 /* ---------- Init ---------- */
