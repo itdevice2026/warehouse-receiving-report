@@ -144,7 +144,7 @@ button.warn:hover{background:#f6d5d0}
       </div>
       <div class="grid2">
         <div class="field"><label>Address</label><input id="address" oninput="render()"></div>
-        <div class="field"><label>No. (override pre-printed serial — usually leave blank)</label><input id="docNo" oninput="render()" placeholder="leave blank"></div>
+        <div class="field"><label>No. (recorded in database only — not printed)</label><input id="docNo" oninput="render()" placeholder="e.g. 0009759"></div>
       </div>
     </div>
 
@@ -328,7 +328,6 @@ function paintFields(place,fontSheetPx){
   place(125+fOff('custName').dx,80+fOff('custName').dy,$('custName').value,'left');
   place(95+fOff('address').dx,106+fOff('address').dy,$('address').value,'left');
   place(470+fOff('docDate').dx,72+fOff('docDate').dy,fmtDate($('docDate').value),'left');
-  place(478+fOff('docNo').dx,95+fOff('docNo').dy,$('docNo').value,'left');
   // line items
   items.forEach((r,i)=>{
     if(i>=MAX_ROWS)return;
@@ -390,7 +389,6 @@ function handleDefs(){
   d.push(['Customer',125,80,'field','custName']);
   d.push(['Address',95,106,'field','address']);
   d.push(['Date',470,72,'field','docDate']);
-  d.push(['No.',478,95,'field','docNo']);
   for(const c in COL_PX){ d.push([COL_LABELS[c]||c, COL_PX[c][0], ROW_TOP, 'cell', c]); }
   d.push(['Total HEADS',COL_PX.qty[0],TOTAL_Y,'field','totQty']);
   d.push(['Total KGS',COL_PX.weight[0],TOTAL_Y,'field','totWt']);
