@@ -78,6 +78,18 @@ button.warn:hover{background:#f6d5d0}
 .ah:hover{background:#eaf5ec}
 .ah.drag{background:#0b6b3a;color:#fff}
 .btn.active,button.ghost.active{background:#0b6b3a;color:#fff}
+.signrow{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;margin-bottom:8px;background:#fbfdfb}
+.signrow .role{font-size:12px;font-weight:600;color:var(--ink)}
+.signrow .who{font-size:11px;color:var(--muted);margin-top:2px}
+.signrow.done{background:#eef6ef;border-color:#bcd9c2}
+.signrow.current{border-color:var(--accent);box-shadow:0 0 0 2px rgba(11,107,58,.12)}
+.sign-btn{border:none;border-radius:6px;padding:7px 12px;font-size:12px;font-weight:600;cursor:pointer;background:var(--green2);color:#fff;white-space:nowrap}
+.sign-btn:disabled{background:#cdd4cd;cursor:not-allowed}
+.sign-check{color:var(--green2);font-weight:700;font-size:13px}
+.badge.draft{background:#eceff1;color:#555}
+.badge.checked{background:#e3f2fd;color:#1565c0}
+.badge.verified{background:#fff3e0;color:#e65100}
+.badge.approved{background:#e8f5e9;color:#1b5e20}
 
 @media print{
   @page{ size:var(--pw) var(--ph); margin:0 }
@@ -174,16 +186,16 @@ button.warn:hover{background:#f6d5d0}
       </div>
     </div>
 
-    <!-- Signatories -->
+    <!-- Approval / Signatories -->
     <div class="card">
-      <h2>Signatories</h2>
-      <div class="grid2">
-        <div class="field"><label>Checked By — Warehouse Checker</label><input id="checkedName" oninput="render()"></div>
-        <div class="field"><label>Date &amp; Time</label><input id="checkedDate" oninput="render()"></div>
-        <div class="field"><label>Verified By — Inventory Analyst</label><input id="verifiedName" oninput="render()"></div>
-        <div class="field"><label>Date &amp; Time</label><input id="verifiedDate" oninput="render()"></div>
-        <div class="field"><label>Approved By — Warehouse Supervisor</label><input id="approvedName" oninput="render()"></div>
-        <div class="field"><label>Date &amp; Time</label><input id="approvedDate" oninput="render()"></div>
+      <h2>Approval <span class="badge draft" id="statusBadge">Draft</span></h2>
+      <div id="approvalNote" class="hint" style="margin:0 0 10px"></div>
+      <div id="signSteps"></div>
+      <!-- system-managed signed values (kept for printing) -->
+      <input type="hidden" id="checkedName"><input type="hidden" id="checkedDate">
+      <input type="hidden" id="verifiedName"><input type="hidden" id="verifiedDate">
+      <input type="hidden" id="approvedName"><input type="hidden" id="approvedDate">
+      <div class="grid2" style="margin-top:14px;border-top:1px solid var(--line);padding-top:14px">
         <div class="field"><label>Acknowledged By — Customer Authorized Rep.</label><input id="ackName" oninput="render()"></div>
         <div class="field"><label>Date &amp; Time</label><input id="ackDate" oninput="render()"></div>
       </div>
@@ -271,6 +283,7 @@ function pctT(px){return (px/SHEET_H*100);}
 /* ---------- State ---------- */
 let items=[];
 let currentId=null;
+let currentStatus='draft', currentRole=null, currentName=null, currentUser=null;
 const $=id=>document.getElementById(id);
 
 /* ---------- Fine-alignment layout overrides (device-local) ---------- */
@@ -464,6 +477,8 @@ function render(){
   applyCalibration($('sheet'),false);
   // scale preview to fit container width
   fitPreview();
+  renderApproval();
+  applyLock();
   saveSettings();
   renderRecords();
 }
@@ -548,7 +563,12 @@ async function doLogout(){ await sb.auth.signOut(); location.reload(); }
 async function onSignedIn(){
   const {data}=await sb.auth.getUser();
   if(!data||!data.user)return;
-  $('userEmail').textContent=data.user.email;
+  currentUser=data.user;
+  let roleRow=null;
+  try{ const r=await sb.from('wrr_roles').select('role,name').eq('user_id',data.user.id).maybeSingle(); roleRow=r.data; }catch(e){}
+  currentRole=roleRow?roleRow.role:null;
+  currentName=roleRow?(roleRow.name||data.user.email):null;
+  $('userEmail').textContent=data.user.email+(currentRole?(' · '+roleTitle(currentRole)):' · no role');
   $('authGate').style.display='none';
   $('appHeader').classList.remove('app-hidden');
   $('appWrap').classList.remove('app-hidden');
@@ -558,17 +578,16 @@ async function onSignedIn(){
 
 /* ---------- Doc read/load ---------- */
 function readDoc(){
+  // signed fields + status are managed only by the approval RPC, never written here
   return {
     custname:$('custName').value,address:$('address').value,docdate:$('docDate').value,docno:$('docNo').value,
     items:JSON.parse(JSON.stringify(items)),
-    checkedname:$('checkedName').value,checkeddate:$('checkedDate').value,
-    verifiedname:$('verifiedName').value,verifieddate:$('verifiedDate').value,
-    approvedname:$('approvedName').value,approveddate:$('approvedDate').value,
     ackname:$('ackName').value,ackdate:$('ackDate').value
   };
 }
 function loadDoc(d){
   currentId=d.id;
+  currentStatus=d.status||'draft';
   $('custName').value=d.custname||'';$('address').value=d.address||'';$('docDate').value=toInputDate(d.docdate)||'';$('docNo').value=d.docno||'';
   $('checkedName').value=d.checkedname||'';$('checkedDate').value=d.checkeddate||'';
   $('verifiedName').value=d.verifiedname||'';$('verifiedDate').value=d.verifieddate||'';
@@ -587,17 +606,19 @@ async function refreshRecords(){
 }
 async function saveRecord(){
   if(!sb)return;
+  if(currentStatus==='approved'){ flash('This report is fully approved and locked',true); return; }
   const d=readDoc();
   let res;
   if(currentId){ res=await sb.from('wrr_reports').update(d).eq('id',currentId).select().single(); }
   else { res=await sb.from('wrr_reports').insert(d).select().single(); }
   if(res.error){ flash('Save failed: '+res.error.message,true); return; }
-  currentId=res.data.id;
+  currentId=res.data.id; currentStatus=res.data.status||currentStatus;
   flash('Saved to cloud');
   await refreshRecords();
+  render();
 }
 function newRecord(){
-  currentId=null;
+  currentId=null; currentStatus='draft';
   ['custName','address','docDate','docNo','checkedName','checkedDate','verifiedName','verifiedDate','approvedName','approvedDate','ackName','ackDate'].forEach(id=>$(id).value='');
   items=[blankRow(),blankRow(),blankRow()];
   renderItemsTable(); render();
@@ -619,7 +640,7 @@ function renderRecords(){
     const dt=new Date(d.updated_at||d.created_at||Date.now());
     const its=Array.isArray(d.items)?d.items:[];
     el.innerHTML=`<div class="meta"><div class="t">${esc(d.custname||'(no customer)')}</div>
-      <div class="d">${esc(fmtDate(d.docdate)||'')} · ${its.filter(r=>r.itemCode||r.desc).length} items · ${dt.toLocaleDateString()}</div></div>
+      <div class="d">${esc(fmtDate(d.docdate)||'')} · ${its.filter(r=>r.itemCode||r.desc).length} items · ${(d.status||'draft')}</div></div>
       <button class="del" title="Delete">🗑</button>`;
     el.onclick=()=>loadDoc(d);
     el.querySelector('.del').onclick=ev=>delRecord(d.id,ev);
@@ -629,6 +650,75 @@ function renderRecords(){
 function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
 function fmtDate(v){ if(!v) return ''; const m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(v); return m? (m[2]+'/'+m[3]+'/'+m[1]) : v; }
 function toInputDate(v){ if(!v) return ''; if(/^\d{4}-\d{2}-\d{2}$/.test(v)) return v; const m=/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(v); return m? (m[3]+'-'+m[1].padStart(2,'0')+'-'+m[2].padStart(2,'0')) : v; }
+
+
+/* ---------- Approval workflow ---------- */
+function roleTitle(r){return {checker:'Warehouse Checker',analyst:'Inventory Analyst',supervisor:'Warehouse Supervisor',admin:'Admin'}[r]||r;}
+const STEP_DEFS=[
+  {key:'checked', role:'checker', label:'Checked by — Warehouse Checker', nameId:'checkedName', dateId:'checkedDate', done:['checked','verified','approved']},
+  {key:'verified', role:'analyst', label:'Verified by — Inventory Analyst', nameId:'verifiedName', dateId:'verifiedDate', done:['verified','approved']},
+  {key:'approved', role:'supervisor', label:'Approved by — Warehouse Supervisor', nameId:'approvedName', dateId:'approvedDate', done:['approved']}
+];
+function nextStepKey(st){ return st==='draft'?'checked':st==='checked'?'verified':st==='verified'?'approved':null; }
+function renderApproval(){
+  const badge=$('statusBadge'); if(!badge) return;
+  const st=currentStatus||'draft';
+  badge.textContent=st.charAt(0).toUpperCase()+st.slice(1);
+  badge.className='badge '+st;
+  const note=$('approvalNote');
+  if(!currentId){ note.textContent='Save the report to begin the approval sequence (Checked → Verified → Approved).'; }
+  else if(st==='approved'){ note.textContent='Fully approved — this report is locked.'; }
+  else { note.textContent='Sequence: Checked → Verified → Approved.'+(currentRole?'':' Your account has no approval role assigned.'); }
+  const next=nextStepKey(st);
+  const box=$('signSteps'); box.innerHTML='';
+  STEP_DEFS.forEach(s=>{
+    const isDone=s.done.includes(st);
+    const isNext=(s.key===next);
+    const row=document.createElement('div'); row.className='signrow'+(isDone?' done':'')+(isNext?' current':'');
+    const who=isDone ? (esc($(s.nameId).value||'Signed')+(($(s.dateId).value)?(' · '+esc($(s.dateId).value)):'')) : (isNext?'Awaiting signature':'Pending');
+    const left=document.createElement('div');
+    left.innerHTML='<div class="role">'+esc(s.label)+'</div><div class="who">'+who+'</div>';
+    row.appendChild(left);
+    const right=document.createElement('div');
+    if(isDone){ right.innerHTML='<span class="sign-check">✓ Signed</span>'; }
+    else if(isNext){
+      const canSign = !!currentId && (currentRole==='admin'||currentRole===s.role);
+      const b=document.createElement('button'); b.className='sign-btn'; b.textContent='Sign as '+roleTitle(s.role);
+      b.disabled=!canSign;
+      b.title = !currentId ? 'Save the report first' : (canSign?'' : ('Requires the '+roleTitle(s.role)+' role'));
+      b.onclick=signStep;
+      right.appendChild(b);
+    } else { right.innerHTML='<span class="who" style="opacity:.55">—</span>'; }
+    row.appendChild(right);
+    box.appendChild(row);
+  });
+  if(currentRole==='admin' && currentId && (currentStatus!=='draft')){
+    const r=document.createElement('button'); r.className='btn ghost'; r.type='button';
+    r.style.cssText='padding:5px 10px;font-size:12px;margin-top:2px'; r.textContent='Revert one step (admin)';
+    r.onclick=revertStep; box.appendChild(r);
+  }
+}
+async function signStep(){
+  if(!currentId){ flash('Save the report first',true); return; }
+  const {data,error}=await sb.rpc('wrr_sign',{p_id:currentId});
+  if(error){ flash(error.message||'Could not sign',true); return; }
+  loadDoc(data); flash('Signed'); await refreshRecords();
+}
+async function revertStep(){
+  if(!currentId) return;
+  if(!confirm('Revert the most recent approval step?')) return;
+  const {data,error}=await sb.rpc('wrr_revert',{p_id:currentId});
+  if(error){ flash(error.message||'Could not revert',true); return; }
+  loadDoc(data); flash('Reverted one step'); await refreshRecords();
+}
+function applyLock(){
+  const locked = (currentStatus==='approved');
+  ['custName','address','docDate','docNo','ackName','ackDate'].forEach(id=>{ const e=$(id); if(e) e.disabled=locked; });
+  document.querySelectorAll('#itemBody input').forEach(e=>{ e.disabled=locked; });
+  document.querySelectorAll('#itemBody .rmbtn').forEach(b=>{ b.style.display=locked?'none':''; });
+  const addBtn=document.querySelector('button[onclick="addRow()"]'); if(addBtn) addBtn.disabled=locked;
+  const saveBtn=document.querySelector('header.app button[onclick="saveRecord()"]'); if(saveBtn){ saveBtn.disabled=locked; saveBtn.style.opacity=locked?'.5':'1'; }
+}
 
 /* ---------- Settings persistence ---------- */
 function saveSettings(){
