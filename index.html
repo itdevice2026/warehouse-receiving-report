@@ -207,7 +207,7 @@ table.admin-tbl select{padding:5px 7px;border:1px solid var(--field-bd);border-r
 <header class="app app-hidden" id="appHeader">
   <div>
     <h1 id="docTitle">Pacific Agrisolutions Enterprises Inc. — Warehouse Receiving Report</h1>
-    <div class="sub">Pre-printed form data entry &amp; overlay print system &middot; <span id="buildTag">build 2026-06-20#26</span></div>
+    <div class="sub">Pre-printed form data entry &amp; overlay print system &middot; <span id="buildTag">build 2026-06-20#27</span></div>
     <div class="doctype-switch">
       <button type="button" id="dtReceiving" class="dt active" onclick="setDocType('receiving')"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Receiving (Stock In)</button>
       <button type="button" id="dtIssuance" class="dt" onclick="setDocType('issuance')"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>Issuance (Stock Out)</button>
@@ -333,7 +333,8 @@ table.admin-tbl select{padding:5px 7px;border:1px solid var(--field-bd);border-r
         <label class="tf">From <input type="date" id="traceFrom" onchange="renderTrace()"></label>
         <label class="tf">To <input type="date" id="traceTo" onchange="renderTrace()"></label>
         <button class="btn ghost" onclick="loadTrace()">Refresh</button>
-        <button class="btn" onclick="exportTrace()">⬇ Export Excel</button>
+        <button class="btn ghost" onclick="exportTrace()">⬇ Excel</button>
+        <button class="btn" onclick="exportTracePdf()">⬇ PDF</button>
       </div>
       <p class="hint" style="margin-top:0">Each approved <b>Receiving</b> is an incoming (IN) movement; each approved <b>Issuance</b> is outgoing (OUT). Click an item to expand its full movement ledger with running balance.</p>
       <div id="traceBody"><div class="empty">Loading…</div></div>
@@ -1242,6 +1243,49 @@ async function exportTrace(){
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(ledRows), 'Movements');
   XLSX.writeFile(wb, 'Stock_Traceability_'+new Date().toISOString().slice(0,10)+'.xlsx');
   flash('Exported Excel');
+}
+function ensurePdf(){
+  return new Promise((res,rej)=>{
+    if(window.jspdf && window.jspdf.jsPDF && window.jspdf.jsPDF.API && window.jspdf.jsPDF.API.autoTable){ res(); return; }
+    const a=document.createElement('script'); a.src='https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+    a.onload=()=>{ const b=document.createElement('script'); b.src='https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js'; b.onload=()=>res(); b.onerror=rej; document.head.appendChild(b); };
+    a.onerror=rej; document.head.appendChild(a);
+  });
+}
+async function exportTracePdf(){
+  const list=traceFiltered();
+  if(!list.length){ flash('Nothing to export',true); return; }
+  try{ await ensurePdf(); }catch(e){ flash('Could not load the PDF library',true); return; }
+  const { jsPDF }=window.jspdf;
+  const doc=new jsPDF({orientation:'landscape',unit:'pt',format:'a4'});
+  const PH=doc.internal.pageSize.getHeight();
+  doc.setFontSize(14); doc.setTextColor(27,94,32); doc.text('PASEI — Stock Traceability Report',40,36);
+  doc.setFontSize(9); doc.setTextColor(110,110,110);
+  doc.text('Incoming & Outgoing stock movements (approved documents)  ·  Generated '+new Date().toLocaleString(),40,52);
+  // Summary
+  const g={}; list.forEach(m=>{ const o=g[m.item_code]=g[m.item_code]||{d:m.description,b:m.brand,rh:0,ih:0,rk:0,ik:0};
+    if(m.direction==='IN'){o.rh+=Number(m.heads||0);o.rk+=Number(m.kgs||0);} else {o.ih+=Number(m.heads||0);o.ik+=Number(m.kgs||0);} });
+  const sumBody=Object.keys(g).sort().map(k=>{const o=g[k];return [k,o.d,o.b,fmt(o.rh),fmt(o.ih),fmt(o.rh-o.ih),fmt(o.rk),fmt(o.ik),fmt(o.rk-o.ik)];});
+  doc.autoTable({ startY:64, head:[['Item','Description','Brand','Recv (hd)','Issued (hd)','On hand (hd)','Recv (kg)','Issued (kg)','On hand (kg)']], body:sumBody,
+    styles:{fontSize:8,cellPadding:3}, headStyles:{fillColor:[46,125,50]}, columnStyles:{3:{halign:'right'},4:{halign:'right'},5:{halign:'right',fontStyle:'bold'},6:{halign:'right'},7:{halign:'right'},8:{halign:'right'}}, margin:{left:40,right:40} });
+  // Per-item ledger with running balance + approval trail
+  const groups={}; list.forEach(m=>{ (groups[m.item_code]=groups[m.item_code]||[]).push(m); });
+  Object.keys(groups).sort().forEach(code=>{
+    const ms=groups[code].slice().sort(_byDate); let run=0;
+    const body=ms.map(m=>{ const h=Number(m.heads||0); run+=(m.direction==='IN'?h:-h);
+      return [fmtDate(m.docdate),m.direction,m.docno,m.custname,m.direction==='IN'?fmt(h):'',m.direction==='OUT'?fmt(h):'',fmt(run),fmt(Number(m.kgs||0)),m.crate,m.pallet,fmtDate(m.prod_date),fmtDate(m.exp_date),
+        (m.checked_by||'')+(m.checked_at?'\n'+m.checked_at:''),(m.verified_by||'')+(m.verified_at?'\n'+m.verified_at:''),(m.approved_by||'')+(m.approved_at_txt?'\n'+m.approved_at_txt:'')]; });
+    let y=(doc.lastAutoTable?doc.lastAutoTable.finalY:70)+20;
+    if(y>PH-70){ doc.addPage(); y=44; }
+    doc.setFontSize(10); doc.setTextColor(27,94,32);
+    doc.text(code+'   '+(ms[0].description||'')+(ms[0].brand?' · '+ms[0].brand:''),40,y);
+    doc.autoTable({ startY:y+6,
+      head:[['Date','Dir','Doc No','Party','In','Out','Bal','Kgs','Crate','Pallet','Prod','Exp','Checked By','Verified By','Approved By']], body,
+      styles:{fontSize:6.5,cellPadding:2,overflow:'linebreak',valign:'top'}, headStyles:{fillColor:[46,125,50],fontSize:6.5,halign:'center'},
+      columnStyles:{4:{halign:'right'},5:{halign:'right'},6:{halign:'right',fontStyle:'bold'},7:{halign:'right'}}, margin:{left:40,right:40} });
+  });
+  doc.save('Stock_Traceability_'+new Date().toISOString().slice(0,10)+'.pdf');
+  flash('Exported PDF');
 }
 async function openStock(){ $('stockModal').style.display='flex'; await loadStock(); }
 function closeStock(){ $('stockModal').style.display='none'; }
